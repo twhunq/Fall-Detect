@@ -1,0 +1,19 @@
+{
+  "class_names": [
+    "di_bo",
+    "dung",
+    "nam",
+    "nga",
+    "ngoi"
+  ],
+  "n_features": 30,
+  "hidden_layers": [
+    16,
+    8
+  ],
+  "train_accuracy": 1.0,
+  "test_accuracy": 1.0,
+  "n_params": 677,
+  "window_size": 50,
+  "sample_rate_hz": 50
+}

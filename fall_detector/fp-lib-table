@@ -1,0 +1,12 @@
+(fp_lib_table
+	(version 7)
+	(lib (name "fall_detector") (type "KiCad") (uri "${KIPRJMOD}/lib/fall_detector.pretty") (options "") (descr "Project footprints"))
+	(lib (name "Resistor_THT") (type "KiCad") (uri "${KICAD10_FOOTPRINT_DIR}/Resistor_THT.pretty") (options "") (descr ""))
+	(lib (name "Capacitor_THT") (type "KiCad") (uri "${KICAD10_FOOTPRINT_DIR}/Capacitor_THT.pretty") (options "") (descr ""))
+	(lib (name "LED_THT") (type "KiCad") (uri "${KICAD10_FOOTPRINT_DIR}/LED_THT.pretty") (options "") (descr ""))
+	(lib (name "Diode_THT") (type "KiCad") (uri "${KICAD10_FOOTPRINT_DIR}/Diode_THT.pretty") (options "") (descr ""))
+	(lib (name "Package_TO_SOT_THT") (type "KiCad") (uri "${KICAD10_FOOTPRINT_DIR}/Package_TO_SOT_THT.pretty") (options "") (descr ""))
+	(lib (name "Buzzer_Beeper") (type "KiCad") (uri "${KICAD10_FOOTPRINT_DIR}/Buzzer_Beeper.pretty") (options "") (descr ""))
+	(lib (name "Connector_JST") (type "KiCad") (uri "${KICAD10_FOOTPRINT_DIR}/Connector_JST.pretty") (options "") (descr ""))
+	(lib (name "MountingHole") (type "KiCad") (uri "${KICAD10_FOOTPRINT_DIR}/MountingHole.pretty") (options "") (descr ""))
+)

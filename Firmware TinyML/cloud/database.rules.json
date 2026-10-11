@@ -1,0 +1,39 @@
+{
+  "rules": {
+    "access": {
+      "$dev": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid"
+        }
+      }
+    },
+    "devices": {
+      "$dev": {
+        ".read": "auth != null && root.child('access').child($dev).child(auth.uid).exists()",
+        "status": {
+          ".write": "auth != null && root.child('access').child($dev).child(auth.uid).val() === 'device'"
+        },
+        "info": {
+          ".write": "auth != null && root.child('access').child($dev).child(auth.uid).val() === 'device'"
+        },
+        "applied": {
+          ".write": "auth != null && root.child('access').child($dev).child(auth.uid).val() === 'device'"
+        },
+        "control": {
+          ".write": "auth != null && (root.child('access').child($dev).child(auth.uid).val() === 'owner' || root.child('access').child($dev).child(auth.uid).val() === 'device')",
+          "settings": {
+            ".validate": "newData.hasChildren(['telegramOn', 'gmailOn', 'chatIds', 'emailTo'])",
+            "telegramOn": { ".validate": "newData.isBoolean()" },
+            "gmailOn": { ".validate": "newData.isBoolean()" },
+            "chatIds": { ".validate": "newData.isString() && newData.val().length < 170" },
+            "emailTo": { ".validate": "newData.isString() && newData.val().length < 490" },
+            "inactiveMin": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1440" },
+            "$other": { ".validate": false }
+          },
+          "testAt": { ".validate": "newData.isNumber() && newData.val() <= now" },
+          "$other": { ".validate": false }
+        }
+      }
+    }
+  }
+}

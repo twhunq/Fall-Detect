@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f3f4f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
+<title>Thiết bị báo ngã</title>
+<style>
+:root{--bg:#f3f4f6;--card:#fff;--text:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#2563eb;
+--ok:#16a34a;--warn:#d97706;--bad:#dc2626;--chip:#f3f4f6}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#181b21;--text:#e5e7eb;--muted:#9ca3af;
+--line:#2a2f38;--accent:#60a5fa;--ok:#22c55e;--warn:#f59e0b;--bad:#f87171;--chip:#222730}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+main{max-width:1040px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+[hidden]{display:none!important}
+header{display:flex;justify-content:space-between;align-items:center;gap:8px 12px;margin-bottom:16px;flex-wrap:wrap}
+header .who{min-width:0}
+header .actions{display:flex;gap:12px;align-items:center;min-width:0}
+h1{font-size:20px;margin:0;overflow-wrap:anywhere}
+h2{font-size:15px;margin:0 0 12px}
+.sub{color:var(--muted);font-size:13px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--card);
+border:1px solid var(--line);font-size:13px;min-width:0}
+.pill>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.on .dot{background:var(--ok)}.off .dot{background:var(--bad)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.layout{display:grid;gap:0 16px}
+@media (min-width:900px){.layout{grid-template-columns:5fr 6fr;align-items:start}.layout>.side{position:sticky;top:16px}}
+.modal{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.55)}
+.alarm{width:100%;max-width:420px;background:var(--bad);color:#fff;border-radius:16px;padding:24px;text-align:center;
+font-weight:700;font-size:22px;animation:blink 1s infinite}
+.alarm.done{animation:none}
+.alarm.still{background:var(--warn)}
+.alarm.still button{color:#92400e}
+.alarm small{display:block;font-weight:400;font-size:14px;opacity:.9;margin-top:8px}
+.alarm button{margin-top:18px;width:100%;min-height:46px;background:#fff;color:#b91c1c;font-size:16px}
+@keyframes blink{50%{opacity:.75}}
+.hero{display:flex;align-items:center;gap:16px}
+.stale .hero,.stale .chips{opacity:.5}
+.icon{font-size:52px;line-height:1;width:72px;height:72px;display:grid;place-items:center;border-radius:18px;background:var(--chip);flex:none}
+.state{font-size:26px;font-weight:700;line-height:1.2}
+.bar{height:6px;background:var(--chip);border-radius:3px;margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .4s}
+.chips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px}
+.chips span{padding:6px 4px;border-radius:999px;background:var(--chip);color:var(--muted);font-size:13px;text-align:center;white-space:nowrap}
+.chips span.cur{background:var(--accent);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media (min-width:600px) and (max-width:899px){.grid{grid-template-columns:repeat(4,1fr)}}
+.grid div{background:var(--chip);border-radius:10px;padding:10px 12px}
+.grid b{display:block;font-size:16px;margin-top:2px}
+.good{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.channel{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.items{list-style:none;margin:10px 0 0;padding:0}
+.items li{display:flex;align-items:center;gap:8px;min-height:44px;padding:6px 0;border-top:1px solid var(--line)}
+.items .val{flex:1;min-width:0;overflow-wrap:anywhere;font:14px/1.35 ui-monospace,Consolas,monospace}
+.items .empty{color:var(--muted);font-size:13px}
+.items .edit input{flex:1;min-width:0;padding:7px 9px}
+.acts{display:flex;gap:6px;flex:none}
+button.mini{min-height:34px;padding:6px 12px;font-size:13px;background:var(--chip);color:var(--text)}
+button.mini.primary{background:var(--accent);color:#fff}
+button.mini.danger{color:var(--bad)}
+button.add{margin-top:8px;min-height:38px;padding:8px 12px;background:none;border:1px dashed var(--line);color:var(--accent);width:100%}
+button.add:hover{border-color:var(--accent)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.switch{position:relative;width:46px;height:26px;flex:none}
+.switch input{opacity:0;width:0;height:0}
+.switch span{position:absolute;inset:0;background:var(--line);border-radius:13px;transition:.2s;cursor:pointer}
+.switch span:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.switch input:checked+span{background:var(--ok)}
+.switch input:checked+span:before{transform:translateX(20px)}
+.switch input:disabled+span{opacity:.4;cursor:not-allowed}
+label.f{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+input.t{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font:15px system-ui,sans-serif}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+button{border:0;border-radius:9px;padding:10px 16px;min-height:42px;font:600 14px system-ui,sans-serif;cursor:pointer;touch-action:manipulation}
+.primary{background:var(--accent);color:#fff}.secondary{background:var(--chip);color:var(--text)}
+.link{background:none;color:var(--accent);padding:4px 0;min-height:0;font-weight:500;white-space:nowrap}
+font:600 13px system-ui,sans-serif;text-decoration:none;white-space:nowrap;border:1px solid #1e2335}
+button:disabled{opacity:.5;cursor:not-allowed}
+.msg{margin-top:10px;font-size:14px;min-height:20px}
+.note{font-size:12px;color:var(--warn);margin-top:6px}
+.minutes{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.minutes input.t{width:110px}
+.login{max-width:400px;margin:12vh auto 0}
+@media (max-width:599px){
+  main{padding-top:14px}
+  header{margin-bottom:12px}
+  header .actions{width:100%;justify-content:space-between;flex-wrap:wrap;row-gap:8px}
+  .card{padding:14px;border-radius:12px;margin-bottom:12px}
+  .hero{gap:12px}
+  .icon{width:60px;height:60px;font-size:40px;border-radius:15px}
+  .state{font-size:22px}
+  .chips{gap:6px}.chips span{font-size:12px}
+  input.t{font-size:16px}
+  .btns:not(.inline) button:not(.link){flex:1 1 140px;min-height:46px}
+  .login{margin-top:6vh}
+}
+code{background:var(--chip);padding:2px 6px;border-radius:5px;font-size:13px;word-break:break-all}
+</style>
+</head>
+<body>
+<main>
+
+<section class="card login" id="vLoading"><p class="sub">Đang tải…</p></section>
+
+<section class="card login" id="vSetup" hidden>
+  <h2>Chưa cấu hình Firebase</h2>
+  <p class="sub">Điền thông tin dự án Firebase vào <code>public/config.js</code> rồi triển khai lại (xem README, mục "Truy cập từ xa").</p>
+</section>
+
+<form class="card login" id="vLogin" hidden>
+  <h2>Đăng nhập · Thiết bị báo ngã</h2>
+  <label class="f" for="email">Email</label>
+  <input class="t" id="email" type="email" autocomplete="username" required>
+  <label class="f" for="pass">Mật khẩu</label>
+  <input class="t" id="pass" type="password" autocomplete="current-password" required>
+  <div class="btns inline"><button class="primary" id="loginBtn">Đăng nhập</button>
+    <button class="link" type="button" id="forgot">Quên mật khẩu?</button></div>
+  <div class="msg" id="loginMsg"></div>
+</form>
+
+<section class="card login" id="vNoAccess" hidden>
+  <h2>Tài khoản chưa được cấp quyền</h2>
+  <p class="sub">Chủ thiết bị cần mở Firebase console → Realtime Database → Data và thêm mục sau:</p>
+  <p><code id="accessPath"></code></p>
+  <p class="sub">Giá trị <code>"owner"</code> (xem và đổi cài đặt) hoặc <code>"viewer"</code> (chỉ xem). Sau đó tải lại trang.</p>
+  <div class="btns"><button class="secondary" type="button" data-logout>Đăng xuất</button></div>
+</section>
+
+<div id="vApp" hidden>
+<header>
+  <div class="who"><h1 id="dev">Thiết bị báo ngã</h1><div class="sub" id="ip"></div></div>
+  <div class="actions">
+    <span class="pill off" id="sync"><span class="dot"></span><span id="syncText">Đang kết nối…</span></span>
+    
+    <button class="link" type="button" data-logout>Đăng xuất</button>
+  </div>
+</header>
+
+<div class="modal" id="alarm" hidden role="alertdialog" aria-modal="true" aria-labelledby="alarmTitle">
+  <div class="alarm" id="alarmBox">
+    <div id="alarmTitle"></div><small id="alarmText"></small>
+    <button type="button" id="alarmOk">Đã biết</button>
+  </div>
+</div>
+
+<div class="layout">
+<div class="side">
+<section class="card" id="activityCard">
+  <div class="hero">
+    <div class="icon" id="icon">⏳</div>
+    <div style="flex:1">
+      <div class="sub">Trạng thái hiện tại</div>
+      <div class="state" id="state">Đang chờ dữ liệu</div>
+      <div class="bar"><i id="confBar"></i></div>
+      <div class="sub" id="conf">Độ tin cậy —</div>
+    </div>
+  </div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section class="card">
+  <h2>Thiết bị</h2>
+  <div class="grid">
+    <div><span class="sub">Cảm biến</span><b id="imu">—</b></div>
+    <div><span class="sub">Hiệu chỉnh</span><b id="cal">—</b></div>
+    <div><span class="sub">Pin</span><b id="bat">—</b></div>
+    <div><span class="sub">Wi-Fi</span><b id="wifi">—</b></div>
+    <div><span class="sub">Không cử động</span><b id="still">—</b></div>
+    <div><span class="sub">Cảnh báo bất động</span><b id="limit">—</b></div>
+  </div>
+</section>
+
+</div>
+
+<section class="card">
+  <h2>Thông báo cảnh báo</h2>
+  <p class="sub" style="margin:-6px 0 12px">Khi phát hiện ngã, giữ nút SOS hoặc người đeo không cử động quá lâu, thiết bị gửi tới <b>tất cả</b> người nhận của kênh đang bật (tối đa <span id="max">5</span> mỗi kênh). Thay đổi được lưu ngay.</p>
+  <div class="channel">
+    <div class="row"><div><b>Telegram</b><div class="sub">Chat ID người dùng, nhóm (số âm) hoặc @ten_kenh</div></div>
+      <label class="switch" title="Bật/tắt gửi Telegram"><input type="checkbox" id="tgOn"><span></span></label></div>
+    <ul class="items" id="tgList"></ul>
+    <button class="add" type="button" id="tgAdd">+ Thêm Chat ID</button>
+    <div class="note" id="tgNote" hidden>Thiết bị chưa có TELEGRAM_BOT_TOKEN trong secrets.h nên không bật được.</div>
+  </div>
+  <div class="channel">
+    <div class="row"><div><b>Gmail</b><div class="sub">Email người nhận</div></div>
+      <label class="switch" title="Bật/tắt gửi Gmail"><input type="checkbox" id="gmOn"><span></span></label></div>
+    <ul class="items" id="gmList"></ul>
+    <button class="add" type="button" id="gmAdd">+ Thêm email</button>
+    <div class="note" id="gmNote" hidden>Thiết bị chưa có GMAIL_ADDRESS / GMAIL_APP_PASSWORD trong secrets.h nên không bật được.</div>
+  </div>
+  <div class="channel">
+    <div><b>Cảnh báo bất động</b><div class="sub">Gửi cảnh báo khi người đeo không cử động quá số phút này (0 = tắt, tối đa 1440). Cử động hoặc chạm vào thiết bị sẽ tính lại từ đầu; khi ngủ nên đặt dài hơn thời gian nằm yên thường ngày.</div></div>
+    <div class="minutes">
+      <input class="t" type="number" id="inactiveMin" min="0" max="1440" step="1" inputmode="numeric" aria-label="Số phút">
+      <span class="sub">phút</span>
+      <button class="mini primary" type="button" id="inactiveSave">Lưu</button>
+    </div>
+  </div>
+  <div class="sub" id="applyState"></div>
+  <div class="note" id="viewerNote" hidden>Tài khoản của bạn chỉ có quyền xem.</div>
+  <div class="msg" id="msg"></div>
+</section>
+</div>
+</div>
+</main>
+
+<script type="module">
+import { firebaseConfig, deviceId } from './config.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail }
+  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { getDatabase, ref, onValue, get, set }
+  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+const $ = id => document.getElementById(id);
+// The model's "nga" class is not shown as an activity: a confirmed fall
+// (alarm "fall", alerts sent) opens the popup instead.
+const A = {di_bo:['🚶','Đi bộ'], dung:['🧍','Đứng'], ngoi:['🪑','Ngồi'], nam:['🛌','Nằm']};
+const STALE_MS = 75000; // Device heartbeat is 30 s.
+const DEV = new URLSearchParams(location.search).get('device') || deviceId;
+
+function view(id) {
+  for (const v of ['vLoading', 'vSetup', 'vLogin', 'vNoAccess', 'vApp']) $(v).hidden = v !== id;
+}
+function setText(id, t, cls) { const e = $(id); e.textContent = t; e.className = cls || ''; }
+function msg(id, t, cls) { setText(id, t, 'msg ' + (cls || '')); }
+const clock = ms => new Date(ms).toLocaleTimeString('vi-VN');
+function dur(s) {
+  s = Math.max(0, Math.floor(s));
+  const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+  return h ? h + ' giờ ' + m + ' phút' : m ? m + ' phút ' + s % 60 + ' giây' : s + ' giây';
+}
+
+if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith('DIEN_')) {
+  view('vSetup');
+  throw new Error('config.js chưa được điền');
+}
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app), db = getDatabase(app);
+const devRef = path => ref(db, 'devices/' + DEV + (path ? '/' + path : ''));
+
+// ---- Login ----
+$('vLogin').onsubmit = async e => {
+  e.preventDefault();
+  $('loginBtn').disabled = true;
+  try { await signInWithEmailAndPassword(auth, $('email').value.trim(), $('pass').value); }
+  catch (err) {
+    const c = err.code || '';
+    msg('loginMsg', c.includes('invalid') || c.includes('wrong-password') || c.includes('user-not-found')
+      ? 'Sai email hoặc mật khẩu.' : c.includes('too-many') ? 'Thử sai quá nhiều lần, đợi ít phút rồi thử lại.'
+      : c.includes('network') ? 'Không có kết nối mạng.' : 'Không đăng nhập được: ' + c, 'bad');
+  }
+  $('loginBtn').disabled = false;
+};
+$('forgot').onclick = async () => {
+  const email = $('email').value.trim();
+  if (!email) return msg('loginMsg', 'Nhập email trước rồi bấm "Quên mật khẩu?".', 'bad');
+  try { await sendPasswordResetEmail(auth, email); msg('loginMsg', 'Đã gửi email đặt lại mật khẩu (nếu tài khoản tồn tại).', 'good'); }
+  catch (err) { msg('loginMsg', 'Không gửi được: ' + (err.code || err), 'bad'); }
+};
+document.querySelectorAll('[data-logout]').forEach(b => b.onclick = () => signOut(auth).then(() => location.reload()));
+
+let role = null, unsubscribe = null;
+onAuthStateChanged(auth, async user => {
+  if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+  if (!user) return view('vLogin');
+  view('vLoading');
+  try { role = (await get(ref(db, 'access/' + DEV + '/' + user.uid))).val(); }
+  catch (err) { role = null; }
+  if (!role) {
+    $('accessPath').textContent = 'access / ' + DEV + ' / ' + user.uid + ' = "owner"';
+    return view('vNoAccess');
+  }
+  view('vApp');
+  $('viewerNote').hidden = role === 'owner';
+  unsubscribe = onValue(devRef(), snap => { data = snap.val() || {}; render(); },
+    err => { setText('syncText', 'Không đọc được dữ liệu: ' + err.code); });
+});
+
+// ---- Live status ----
+let data = {}, offset = 0, lastAct = null, lastAlarm = null, lastInactive = null, popup = null;
+$('alarmOk').onclick = () => { popup = null; $('alarm').hidden = true; };
+onValue(ref(db, '.info/serverTimeOffset'), s => { offset = s.val() || 0; });
+$('chips').innerHTML = Object.keys(A).map(k => '<span data-k="' + k + '">' + A[k][0] + ' ' + A[k][1] + '</span>').join('');
+
+function render() {
+  const s = data.status || {}, info = data.info || {};
+  const fresh = s.updatedAt && Date.now() + offset - s.updatedAt < STALE_MS;
+  $('dev').textContent = info.name || 'Thiết bị báo ngã';
+  $('ip').textContent = 'Mã thiết bị: ' + DEV + (s.ip ? ' · IP trong nhà ' + s.ip : '');
+  $('sync').className = 'pill ' + (fresh ? 'on' : 'off');
+  $('syncText').textContent = !s.updatedAt ? 'Thiết bị chưa kết nối'
+    : fresh ? 'Đang đồng bộ · ' + clock(s.updatedAt) : 'Thiết bị ngoại tuyến · lần cuối ' + clock(s.updatedAt);
+  $('activityCard').className = 'card' + (fresh ? '' : ' stale');
+  // While the model says "nga" (not a listed activity) keep showing the last activity.
+  const known = !!A[s.activity], key = known ? s.activity : s.activity === 'nga' ? lastAct : null;
+  const a = A[key];
+  document.title = (info.name || 'Báo ngã') + (fresh && a ? ' · ' + a[1] : '');
+
+  if (!s.updatedAt) { $('icon').textContent = '📴'; $('state').textContent = 'Chưa kết nối'; }
+  else if (!s.imu) { $('icon').textContent = '🔌'; $('state').textContent = 'Cảm biến lỗi'; }
+  else if (!s.model) { $('icon').textContent = '❗'; $('state').textContent = 'Mô hình lỗi'; }
+  else if (s.cal === 'run') { $('icon').textContent = '🎯'; $('state').textContent = 'Đang hiệu chỉnh'; }
+  else if (!a) { $('icon').textContent = '⏳'; $('state').textContent = 'Đang chờ dữ liệu'; }
+  else { $('icon').textContent = a[0]; $('state').textContent = a[1]; }
+  const c = known && s.imu ? Math.round(s.confidence * 100) : 0;
+  $('confBar').style.width = c + '%';
+  $('conf').textContent = known && s.imu ? 'Độ tin cậy ' + c + '%' : 'Độ tin cậy —';
+  document.querySelectorAll('#chips span').forEach(e => e.className = a && e.dataset.k === key && s.imu ? 'cur' : '');
+  if (known) lastAct = s.activity;
+
+  // Popup opens when a new fall/SOS alarm starts (the device sends its alerts
+  // at that moment) and stays until "Đã biết", even if the alarm is silenced.
+  if ((s.alarm === 'fall' || s.alarm === 'sos') && s.alarm !== lastAlarm) popup = s.alarm;
+  else if (s.inactive && lastInactive !== true && !popup) popup = 'inactive';
+  lastAlarm = s.alarm;
+  lastInactive = !!s.inactive;
+  // Seconds without movement now; the device reports every 30 s while nothing changes.
+  const still = s.stillSec >= 60 && fresh ? s.stillSec + (Date.now() + offset - s.updatedAt) / 1000 : s.stillSec || 0;
+  $('alarm').hidden = !popup;
+  if (popup) {
+    const inactive = popup === 'inactive', active = inactive ? !!s.inactive : s.alarm === popup;
+    const when = s.updatedAt ? ' Cập nhật lúc ' + clock(s.updatedAt) + (fresh ? '.' : ' (thiết bị đang ngoại tuyến).') : '';
+    $('alarmBox').className = 'alarm' + (inactive ? ' still' : '') + (active ? '' : ' done');
+    $('alarmTitle').textContent = popup === 'fall' ? '🚨 PHÁT HIỆN NGÃ'
+      : popup === 'sos' ? '🆘 YÊU CẦU TRỢ GIÚP (SOS)' : '⏸️ NGƯỜI ĐEO KHÔNG CỬ ĐỘNG';
+    $('alarmText').textContent = (inactive
+      ? (active ? 'Không cử động ' + dur(still) + '. Hãy liên lạc hoặc đến kiểm tra người đeo.'
+                : 'Người đeo đã cử động trở lại.')
+      : !active ? 'Cảnh báo đã được tắt trên thiết bị.'
+      : popup === 'fall' ? 'Còi đang kêu, người đeo chạm vào thiết bị để tắt.' : 'Người đeo đã giữ nút SOS.') + when;
+  }
+  renderStill(s, fresh, still);
+
+  setText('imu', s.updatedAt ? (s.imu ? 'Hoạt động' : 'Lỗi kết nối') : '—', s.imu ? 'good' : 'bad');
+  setText('cal', s.cal === 'ok' ? 'Đã hiệu chỉnh' : s.cal === 'run' ? 'Đang chạy…' : s.cal ? 'Chưa hiệu chỉnh' : '—', s.cal === 'ok' ? 'good' : 'warn');
+  if (!s.updatedAt) setText('bat', '—');
+  else if (s.batteryMv < 2000) setText('bat', 'Cắm USB');
+  else setText('bat', (s.batteryMv / 1000).toFixed(2) + ' V' + (s.batteryLow ? ' · yếu' : ''), s.batteryLow ? 'bad' : 'good');
+  setText('wifi', s.rssi ? s.rssi + ' dBm' : '—', s.rssi > -67 ? 'good' : s.rssi > -80 ? 'warn' : 'bad');
+  renderSettings();
+}
+setInterval(() => { if (!$('vApp').hidden) render(); }, 5000); // Ages the "online" badge.
+
+// ---- Inactivity (time since the last movement, alert limit) ----
+function renderStill(s, fresh, still) {
+  setText('still', s.updatedAt && fresh && s.imu ? dur(still) : '—', s.inactive ? 'bad' : '');
+  const min = current().inactiveMin;
+  setText('limit', min > 0 ? 'Sau ' + min + ' phút' : 'Đang tắt', min > 0 ? '' : 'warn');
+}
+
+// ---- Settings (same rules as the firmware's notify_settings.h) ----
+// Each add / edit / delete / switch writes control/settings at once; the
+// device then sends alerts to every recipient of each enabled channel.
+let editing = null, saving = false; // editing: {ch, idx}, idx -1 = new item
+const MAX = () => (data.info && data.info.maxItems) || 5;
+const chatOk = s => s.length < 32 && (/^@[A-Za-z0-9_]{5,}$/.test(s) || /^-?\d+$/.test(s));
+function mailOk(s) {
+  const m = /^([A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+)@([A-Za-z0-9.-]+)$/.exec(s);
+  if (!m || s.length >= 96) return false;
+  const [, local, domain] = m;
+  return local[0] !== '.' && !local.endsWith('.') && !s.includes('..') &&
+         domain.length >= 3 && domain.includes('.') && !/^[.-]|[.-]$/.test(domain);
+}
+const CH = {
+  tg: { name: 'Telegram', what: 'Chat ID', field: 'chatIds', flag: 'telegramOn', avail: 'telegramAvailable',
+        ok: chatOk, sw: 'tgOn', list: 'tgList', add: 'tgAdd', type: 'text', hint: '6731354828 hoặc @ten_kenh',
+        bad: 'Chat ID phải là số (nhóm: số âm) hoặc @ten_kenh.' },
+  gm: { name: 'Gmail', what: 'email', field: 'emailTo', flag: 'gmailOn', avail: 'gmailAvailable',
+        ok: mailOk, sw: 'gmOn', list: 'gmList', add: 'gmAdd', type: 'email', hint: 'nguoithan@gmail.com',
+        bad: 'Email không hợp lệ.' },
+};
+const items = text => (text || '').split(/[\s,;]+/).filter(Boolean);
+const canEdit = () => role === 'owner' && !saving;
+const DEFAULT_MIN = 60, MAX_MIN = 1440;
+const minutes = c => Number.isInteger(c.inactiveMin) ? c.inactiveMin : DEFAULT_MIN;
+const same = (a, b) => a && b && a.telegramOn === b.telegramOn && a.gmailOn === b.gmailOn &&
+  a.chatIds === b.chatIds && a.emailTo === b.emailTo && minutes(a) === minutes(b);
+// Settings as stored in the cloud (or, before the first save, as the device reported them).
+function current() {
+  const c = (data.control || {}).settings || data.applied || {};
+  return { telegramOn: !!c.telegramOn, gmailOn: !!c.gmailOn, chatIds: c.chatIds || '', emailTo: c.emailTo || '',
+           inactiveMin: minutes(c) };
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+function button(text, cls, onclick) {
+  const b = el('button', cls, text);
+  b.type = 'button';
+  b.onclick = onclick;
+  return b;
+}
+
+function editRow(ch, idx, value) {
+  const c = CH[ch], li = el('li', 'edit'), input = el('input', 't');
+  input.type = c.type;
+  input.value = value;
+  input.placeholder = c.hint;
+  input.autocomplete = 'off';
+  input.setAttribute('aria-label', c.what);
+  input.onkeydown = e => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(ch, idx, input.value); }
+    else if (e.key === 'Escape') cancelEdit();
+  };
+  const acts = el('span', 'acts');
+  acts.append(button('Lưu', 'mini primary', () => commit(ch, idx, input.value)), button('Hủy', 'mini', cancelEdit));
+  li.append(input, acts);
+  setTimeout(() => input.focus(), 0);
+  return li;
+}
+
+function renderList(ch, s) {
+  const c = CH[ch], list = items(s[c.field]), ul = $(c.list);
+  const mine = editing && editing.ch === ch;
+  if (mine && ul.querySelector('li.edit')) return; // Keep what is being typed.
+  const rows = list.map((v, i) => {
+    if (mine && editing.idx === i) return editRow(ch, i, v);
+    const li = el('li');
+    li.append(el('span', 'val', v));
+    if (canEdit() && !editing) {
+      const acts = el('span', 'acts');
+      acts.append(button('Sửa', 'mini', () => startEdit(ch, i)), button('Xóa', 'mini danger', () => remove(ch, i)));
+      li.append(acts);
+    }
+    return li;
+  });
+  if (mine && editing.idx < 0) rows.push(editRow(ch, -1, ''));
+  if (!rows.length) rows.push(el('li', 'empty', 'Chưa có ' + c.what + ' nào.'));
+  ul.replaceChildren(...rows);
+  $(c.add).hidden = !canEdit() || !!editing || list.length >= MAX();
+}
+
+function startEdit(ch, idx) { editing = { ch, idx }; msg('msg', ''); renderSettings(); }
+function cancelEdit() { editing = null; renderSettings(); }
+
+// Validates `next` like the firmware does, then writes it. True on success.
+async function save(next, done) {
+  const info = data.info || {};
+  const problem =
+    next.telegramOn && info.telegramAvailable === false ? 'Thiết bị chưa có bot token, không bật được Telegram.'
+    : next.gmailOn && info.gmailAvailable === false ? 'Thiết bị chưa có tài khoản Gmail gửi, không bật được Gmail.'
+    : next.telegramOn && !next.chatIds ? 'Thêm ít nhất một Chat ID trước khi bật Telegram.'
+    : next.gmailOn && !next.emailTo ? 'Thêm ít nhất một email trước khi bật Gmail.' : '';
+  if (problem) { msg('msg', problem, 'bad'); renderSettings(); return false; }
+  saving = true;
+  renderSettings();
+  let ok = false;
+  try {
+    await set(devRef('control/settings'), next);
+    msg('msg', done + ' Thiết bị áp dụng trong vài giây khi đang trực tuyến.', 'good');
+    ok = true;
+  } catch (err) { msg('msg', 'Không lưu được: ' + (err.code || err), 'bad'); }
+  saving = false;
+  renderSettings();
+  return ok;
+}
+
+async function commit(ch, idx, raw) {
+  const c = CH[ch], s = current(), list = items(s[c.field]), value = raw.trim();
+  if (!value) return msg('msg', 'Nhập ' + c.what + '.', 'bad');
+  if (!c.ok(value)) return msg('msg', c.bad, 'bad');
+  if (list.some((v, i) => i !== idx && v.toLowerCase() === value.toLowerCase()))
+    return msg('msg', value + ' đã có trong danh sách.', 'bad');
+  if (idx < 0 && list.length >= MAX()) return msg('msg', 'Tối đa ' + MAX() + ' ' + c.what + '.', 'bad');
+  if (idx >= 0 && list[idx] === value) return cancelEdit();
+  if (idx < 0) list.push(value); else list[idx] = value;
+  s[c.field] = list.join(', ');
+  const done = (idx < 0 ? 'Đã thêm ' : 'Đã sửa thành ') + value + '.' +
+    (s[c.flag] ? '' : ' ' + c.name + ' đang tắt, bật công tắc để gửi cảnh báo.');
+  if (await save(s, done)) { editing = null; renderSettings(); }
+}
+
+function remove(ch, idx) {
+  const c = CH[ch], s = current(), list = items(s[c.field]), value = list[idx];
+  if (!confirm('Xóa ' + value + ' khỏi danh sách ' + c.name + '?')) return;
+  list.splice(idx, 1);
+  s[c.field] = list.join(', ');
+  let done = 'Đã xóa ' + value + '.';
+  if (!list.length && s[c.flag]) { s[c.flag] = false; done += ' Đã tắt ' + c.name + ' vì không còn người nhận.'; }
+  save(s, done);
+}
+
+for (const ch of Object.keys(CH)) {
+  const c = CH[ch];
+  $(c.add).onclick = () => startEdit(ch, -1);
+  $(c.sw).onchange = () => {
+    const s = current();
+    s[c.flag] = $(c.sw).checked;
+    save(s, (s[c.flag] ? 'Đã bật ' : 'Đã tắt ') + c.name + '.');
+  };
+}
+
+$('inactiveSave').onclick = () => {
+  const raw = $('inactiveMin').value.trim(), n = Number(raw);
+  if (!/^\d+$/.test(raw) || n > MAX_MIN) return msg('msg', 'Nhập số phút từ 0 đến ' + MAX_MIN + ' (0 = tắt).', 'bad');
+  const s = current();
+  if (s.inactiveMin === n) return msg('msg', 'Không có thay đổi.', '');
+  s.inactiveMin = n;
+  save(s, n ? 'Đã đặt cảnh báo bất động sau ' + n + ' phút.' : 'Đã tắt cảnh báo bất động.');
+};
+
+function renderSettings() {
+  const info = data.info || {}, want = (data.control || {}).settings, applied = data.applied, s = current();
+  $('max').textContent = MAX();
+  if (document.activeElement !== $('inactiveMin')) $('inactiveMin').value = s.inactiveMin;
+  $('inactiveMin').disabled = $('inactiveSave').disabled = !canEdit();
+  for (const ch of Object.keys(CH)) {
+    const c = CH[ch], unavailable = info[c.avail] === false;
+    $(c.sw).checked = s[c.flag];
+    $(c.sw).disabled = !canEdit() || (unavailable && !s[c.flag]);
+    $(ch + 'Note').hidden = !unavailable;
+    renderList(ch, s);
+  }
+  if (!applied) setText('applyState', 'Thiết bị chưa báo cài đặt đang dùng.', 'sub');
+  else if (applied.error) setText('applyState', '⚠ Thiết bị không áp dụng cài đặt mới: ' + applied.error, 'bad');
+  else if (!want || same(want, applied)) setText('applyState', '✓ Thiết bị đang dùng cài đặt này.', 'good');
+  else setText('applyState', '⏳ Đang chờ thiết bị áp dụng…', 'warn');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+(footprint "SW_Slide_SS12D00"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(descr "SS12D00 (SS-12D00G3/G4) SPDT slide switch, slotted 1.4x1.0mm holes accept 2.0mm or 2.54mm pitch, 1.0mm centre hole, body 8.6x3.6mm")
+	(tags "slide switch SPDT SS12D00")
+	(property "Reference" "REF**"
+		(at 0 -3 0)
+		(layer "F.SilkS")
+		(uuid "ad36e4e6-a029-4e6f-9aa8-f8d43980504b")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "SW_Slide_SS12D00"
+		(at 0 3 0)
+		(layer "F.Fab")
+		(uuid "65aba16e-6c11-4da1-932d-cb2893f261db")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(uuid "7cf0ca87-59f3-4c9b-8b89-83be06e35823")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "13ccd5cb-4ad2-4506-a140-b12f0390eb40")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_rect
+		(start -4.42 -1.92)
+		(end 4.42 1.92)
+		(stroke
+			(width 0.12)
+			(type default)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "c784911f-7efc-46d3-a39b-fe43de0ce25d")
+	)
+	(fp_rect
+		(start -4.6 -2.1)
+		(end 4.6 2.1)
+		(stroke
+			(width 0.05)
+			(type default)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "8900ee3b-739a-4972-89ac-637baffb01fa")
+	)
+	(fp_rect
+		(start -4.3 -1.8)
+		(end 4.3 1.8)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(fill no)
+		(layer "F.Fab")
+		(uuid "a6ca30de-4957-4245-aee1-a5685a4b2220")
+	)
+	(pad "1" thru_hole oval
+		(at -2.27 0)
+		(size 2.2 1.7)
+		(drill oval 1.4 1)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "aa4f5576-96bb-4d6b-929a-0c5db585ce91")
+	)
+	(pad "2" thru_hole circle
+		(at 0 0)
+		(size 1.7 1.7)
+		(drill 1)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "3daf9f0c-ab5b-4c93-b1a6-db91d069733e")
+	)
+	(pad "3" thru_hole oval
+		(at 2.27 0)
+		(size 2.2 1.7)
+		(drill oval 1.4 1)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "ec92ccd7-8a0a-477b-80f2-60b5ac441462")
+	)
+	(embedded_fonts no)
+)
