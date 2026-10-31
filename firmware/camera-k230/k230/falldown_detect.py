@@ -140,8 +140,9 @@ class CFG:
     # JPEG đã 30KB nên nhiều lắm là 3 hình/giây - không thành video.
     # Vì vậy K230 tự nối WiFi và tự phát hình.
     ENABLE_WIFI      = True
-    WIFI_SSID        = "Marine"
-    WIFI_PASSWORD    = "88889999"
+    WIFI_SSID        = ""      # để trống: đọc từ WIFI_CONFIG_PATH
+    WIFI_PASSWORD    = ""
+    WIFI_CONFIG_PATH = "/sdcard/k230_wifi.json"  # không đưa lên git; mẫu k230/k230_wifi.example.json
     WIFI_TIMEOUT_MS  = 15000
 
     # --- XEM TRỰC TIẾP TRONG MẠNG NHÀ (MJPEG) ---
@@ -273,10 +274,37 @@ class NetLink:
             self._wifi_done = True
 
     # --------------------------------------------------------
+    # SSID/mật khẩu nằm trong thẻ nhớ (/sdcard/k230_wifi.json), không nằm trong
+    # mã nguồn. Thiếu file thì chỉ mất luồng xem hình và ảnh bằng chứng; phát
+    # hiện ngã và báo động qua ESP32 vẫn chạy bình thường.
+    def _load_wifi_config(self):
+        if CFG.WIFI_SSID:
+            return True
+        try:
+            import json
+            with open(CFG.WIFI_CONFIG_PATH) as f:
+                conf = json.load(f)
+        except OSError:
+            print("[WARN] Chưa có", CFG.WIFI_CONFIG_PATH, "- bỏ qua WiFi (xem mẫu k230_wifi.example.json)")
+            return False
+        except ValueError as e:
+            print("[WARN] Sai định dạng", CFG.WIFI_CONFIG_PATH, ":", e)
+            return False
+        CFG.WIFI_SSID = conf.get("ssid", "")
+        CFG.WIFI_PASSWORD = conf.get("password", "")
+        if not CFG.WIFI_SSID:
+            print("[WARN] Thiếu \"ssid\" trong", CFG.WIFI_CONFIG_PATH, "- bỏ qua WiFi")
+            return False
+        return True
+
+    # --------------------------------------------------------
     # Bắt đầu quay số rồi TRẢ VỀ NGAY. Chờ WiFi ở đây nghĩa là màn hình đen
     # suốt 15 giây đầu và camera chưa nhìn thấy gì - trong khi WiFi chỉ dùng
     # để xem hình, còn báo động thì đi qua ESP32 nên không cần nó.
     def _begin_wifi(self):
+        if not self._load_wifi_config():
+            self._wifi_done = True
+            return
         try:
             import network
             self.wlan = network.WLAN(network.STA_IF)

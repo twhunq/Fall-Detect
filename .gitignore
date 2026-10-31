@@ -10,6 +10,7 @@
 # Local secrets & credentials (never commit)
 **/secrets.h
 **/device_secrets.h
+**/k230_wifi.json
 cloud/access.json
 
 # Flutter app (mobile/): build outputs, generated/ephemeral files, signing keys, packages

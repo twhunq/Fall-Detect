@@ -56,5 +56,5 @@ Tốc độ `921600 baud`, cả hai bo đều dùng mức logic `3.3V` nên nố
 ## CanMV K230: Cài đặt và chạy
 - Mở [`k230/falldown_detect.py`](k230/falldown_detect.py) bằng **CanMV IDE** và chép vào K230.
 - Đặt model tại `/sdcard/examples/kmodel/yolov5n-falldown.kmodel`.
-- Chỉnh `WIFI_SSID` và `WIFI_PASSWORD` trong lớp `CFG`.
+- Wi-Fi của K230 không nằm trong mã nguồn: chép [`k230/k230_wifi.example.json`](k230/k230_wifi.example.json) thành `k230_wifi.json`, điền `ssid`/`password` rồi chép vào `/sdcard/k230_wifi.json` (tệp này đã gitignore). Thiếu tệp thì K230 bỏ qua Wi-Fi: vẫn phát hiện ngã và báo qua ESP32, chỉ mất luồng xem hình và ảnh bằng chứng.
 - Ảnh bằng chứng được lưu tại `/sdcard/falls` và tự động đẩy lên Relay khi ESP32 cấp phiếu `SNAP`.

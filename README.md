@@ -145,3 +145,11 @@ powershell -ExecutionPolicy Bypass -File scripts\clean_cache.ps1
 | 3 | **Thiết lập kết nối trước** (*connection pre-warming*) khi va đập ≥ 2 g làm phát sinh sự kiện nghi ngã: tắt Modem Sleep ~10 s, dựng sẵn phiên TLS Firebase; sự kiện bị loại bỏ thì không phát gì | `notifier.h` (`boost`), `cloud_sync.h` (`prewarm`) |
 | 4 | **Zero-Wait & Fast-Flush**: cập nhật trạng thái ngay, đánh thức tác vụ bằng task notification, `TCP_NODELAY`; đẩy `alarm` lên Firebase trên phiên TLS dựng sẵn (keep-alive) rồi nhường `TlsGate` cho Telegram → Gmail (luôn tối đa 1 phiên TLS) | `fall_detection_esp32.ino`, `cloud_sync.h` |
 | 5 | **Đua đa kênh & hợp nhất**: app nghe UDP + BLE + Firebase SSE + Web Portal; gói tới trước kích hoạt báo động, bản lặp bị khử; vòng đeo + camera trong 30 s → "ĐA NGUỒN XÁC NHẬN" | `mobile/lib/core/fusion/` |
+
+---
+
+## Đóng góp và giấy phép
+
+- Dự án mã nguồn mở, hoan nghênh mọi người cùng phát triển: mở **issue** để báo lỗi hoặc đề xuất, gửi **pull request** cho bản sửa. Hướng đang cần: tối ưu mô hình và năng lượng, đưa lõi phát hiện lên kính AI, đồng hồ, quần áo thông minh; góp dữ liệu và kịch bản thử.
+- Không đưa thông tin bí mật vào commit: dùng các tệp mẫu `secrets.example.h`, `device_secrets.example.h`, `k230_wifi.example.json` (bản thật đã gitignore).
+- Giấy phép: [MIT](LICENSE) © 2026 Marine (Tuấn Hưng).
