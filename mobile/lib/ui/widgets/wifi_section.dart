@@ -39,7 +39,7 @@ class _WifiSectionState extends State<WifiSection> {
   Future<T?> _withLan<T>(Future<T> Function(WearableLanService lan) f) async {
     final lan = context.read<AppController>().newLanService();
     if (lan == null) {
-      setState(() => _error = 'Chưa biết địa chỉ vòng đeo. Nhập địa chỉ ở phần "Kết nối".');
+      setState(() => _error = 'Chưa biết địa chỉ vòng đeo. Nhập địa chỉ ở Cài đặt › Chẩn đoán › Kết nối thủ công.');
       return null;
     }
     try {
@@ -163,112 +163,115 @@ class _WifiSectionState extends State<WifiSection> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.statusColors;
+    final t = context.tokens;
     final w = _wifi;
     final connected = (w?['connected'] as String?) ?? '';
     final networks = (w?['networks'] as List? ?? const []).whereType<Map>().toList();
     final attempt =
         w?['attempt'] is Map ? Map<String, dynamic>.from(w!['attempt'] as Map) : null;
-    return SectionCard(
-      title: 'Wi-Fi 2.4 GHz của vòng đeo',
-      trailing: IconButton(
-        tooltip: 'Tải lại',
-        onPressed: _loading ? null : _refresh,
-        icon: _loading
-            ? const SizedBox(
-                width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-            : const Icon(Icons.refresh),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (w == null)
-            Text('Bấm tải lại để đọc danh sách mạng từ vòng đeo.',
-                style: TextStyle(color: colors.muted))
-          else ...[
-            InfoRow('Đang kết nối', connected.isEmpty ? 'Chưa kết nối' : connected,
-                color: connected.isEmpty ? colors.warn : colors.ok),
-            if (connected.isNotEmpty) InfoRow('IP / RSSI', '${w['ip']} / ${w['rssi']} dBm'),
-            if (w['ap'] == true) InfoRow('Hotspot', '${w['apName'] ?? ''} (${w['apIp'] ?? ''})'),
-            if (attempt != null && attempt['state'] != 'none')
-              InfoRow('Lần thử', '${attempt['ssid']}: ${_attemptText('${attempt['state']}')}'),
-            const SizedBox(height: 6),
-            Text('Mạng đã lưu', style: Theme.of(context).textTheme.labelLarge),
-            if (networks.isEmpty)
-              Text('Chưa lưu mạng nào.', style: TextStyle(color: colors.muted)),
-            for (final n in networks)
-              ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(n['open'] == true ? Icons.wifi : Icons.wifi_password),
-                title: Text('${n['ssid']}'),
-                onTap: () => setState(() => _ssid.text = '${n['ssid']}'),
-                trailing: IconButton(
-                  tooltip: 'Quên mạng',
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: _busy ? null : () => _forget('${n['ssid']}'),
-                ),
-              ),
+    final spinner = const SizedBox(
+        width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GroupSection(
+          header: 'Wi-Fi 2.4 GHz của vòng đeo',
+          children: [
+            if (w != null) ...[
+              KeyValueRow('Đang kết nối', connected.isEmpty ? 'Chưa kết nối' : connected,
+                  dot: connected.isEmpty ? t.warn : t.ok),
+              if (connected.isNotEmpty)
+                KeyValueRow('Địa chỉ IP · sóng', '${w['ip']} · ${w['rssi']} dBm'),
+              if (w['ap'] == true)
+                KeyValueRow('Mạng cài đặt', '${w['apName'] ?? ''} (${w['apIp'] ?? ''})'),
+              if (attempt != null && attempt['state'] != 'none')
+                KeyValueRow('Lần thử gần nhất',
+                    '${attempt['ssid']}: ${_attemptText('${attempt['state']}')}'),
+            ],
+            ListRow(
+              title: w == null ? 'Đọc cài đặt Wi-Fi từ vòng đeo' : 'Tải lại',
+              accent: true,
+              trailing: _loading ? spinner : null,
+              onTap: _loading ? null : _refresh,
+            ),
           ],
-          const Divider(height: 24),
-          Row(
+        ),
+        if (w != null) ...[
+          const SizedBox(height: 22),
+          GroupSection(
+            header: 'Mạng đã lưu',
             children: [
-              Expanded(
-                  child: Text('Mạng quanh vòng đeo',
-                      style: Theme.of(context).textTheme.labelLarge)),
-              TextButton.icon(
-                onPressed: _scanning ? null : _startScan,
-                icon: _scanning
-                    ? const SizedBox(
-                        width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.wifi_find),
-                label: Text(_scanning ? 'Đang quét…' : 'Quét'),
-              ),
+              if (networks.isEmpty) const ListRow(title: 'Chưa lưu mạng nào'),
+              for (final n in networks)
+                ListRow(
+                  leading: Icon(n['open'] == true ? Icons.wifi_rounded : Icons.wifi_password_rounded,
+                      color: t.textStrong),
+                  title: '${n['ssid']}',
+                  onTap: () => setState(() => _ssid.text = '${n['ssid']}'),
+                  trailing: IconButton(
+                    tooltip: 'Quên mạng',
+                    icon: Icon(Icons.delete_outline_rounded, color: t.badText),
+                    onPressed: _busy ? null : () => _forget('${n['ssid']}'),
+                  ),
+                ),
             ],
           ),
-          for (final n in _scan)
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(n['open'] == true ? Icons.wifi : Icons.wifi_password),
-              title: Text('${n['ssid']}'),
-              subtitle: Text('${n['rssi']} dBm'),
-              onTap: () => setState(() => _ssid.text = '${n['ssid']}'),
-            ),
-          const SizedBox(height: 8),
-          TextField(
-            key: const Key('wifiSsid'),
-            controller: _ssid,
-            decoration: const InputDecoration(
-                labelText: 'Tên Wi-Fi (SSID, 1-32 byte)', border: OutlineInputBorder()),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            key: const Key('wifiPass'),
-            controller: _pass,
-            obscureText: true,
-            decoration: const InputDecoration(
-                labelText: 'Mật khẩu (8-63 ký tự; trống = mạng mở/đã lưu)',
-                border: OutlineInputBorder()),
-          ),
-          const SizedBox(height: 10),
-          FilledButton.icon(
-            onPressed: _busy ? null : _connect,
-            icon: const Icon(Icons.link),
-            label: const Text('Kết nối mạng này'),
-          ),
-          if (_message != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(_message!, style: TextStyle(color: colors.ok)),
-            ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(_error!, style: TextStyle(color: colors.bad)),
-            ),
         ],
-      ),
+        const SizedBox(height: 22),
+        GroupSection(
+          header: 'Mạng quanh vòng đeo',
+          children: [
+            for (final n in _scan)
+              ListRow(
+                leading: Icon(n['open'] == true ? Icons.wifi_rounded : Icons.wifi_password_rounded,
+                    color: t.textStrong),
+                title: '${n['ssid']}',
+                value: '${n['rssi']} dBm',
+                showChevron: false,
+                onTap: () => setState(() => _ssid.text = '${n['ssid']}'),
+              ),
+            ListRow(
+              title: _scanning ? 'Đang quét…' : 'Quét mạng',
+              accent: true,
+              trailing: _scanning ? spinner : null,
+              onTap: _scanning ? null : _startScan,
+            ),
+          ],
+        ),
+        const SizedBox(height: 22),
+        GroupSection(
+          header: 'Kết nối mạng mới',
+          footer: 'Mật khẩu dài 8-63 ký tự; để trống nếu là mạng mở hoặc đã lưu.',
+          children: [
+            FieldRow(
+              label: 'Tên Wi-Fi',
+              controller: _ssid,
+              fieldKey: const Key('wifiSsid'),
+            ),
+            FieldRow(
+              label: 'Mật khẩu',
+              controller: _pass,
+              fieldKey: const Key('wifiPass'),
+              obscure: true,
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        FilledButton(
+          onPressed: _busy ? null : _connect,
+          child: Text(_busy ? 'Đang kết nối…' : 'Kết nối mạng này'),
+        ),
+        if (_message != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
+            child: Text(_message!, style: TextStyle(fontSize: 14, color: t.okText)),
+          ),
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
+            child: Text(_error!, style: TextStyle(fontSize: 14, color: t.badText)),
+          ),
+      ],
     );
   }
 

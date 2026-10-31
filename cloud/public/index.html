@@ -293,7 +293,8 @@ $('chips').innerHTML = Object.keys(A).map(k => '<span data-k="' + k + '">' + A[k
 function render() {
   const s = data.status || {}, info = data.info || {};
   const fresh = s.updatedAt && Date.now() + offset - s.updatedAt < STALE_MS;
-  $('dev').textContent = info.name || 'Thiết bị báo ngã';
+  const person = data.profile && typeof data.profile.name === 'string' ? data.profile.name : '';
+  $('dev').textContent = person ? 'Đang theo dõi: ' + person : (info.name || 'Thiết bị báo ngã');
   $('ip').textContent = 'Mã thiết bị: ' + DEV + (s.ip ? ' · IP trong nhà ' + s.ip : '');
   $('sync').className = 'pill ' + (fresh ? 'on' : 'off');
   $('syncText').textContent = !s.updatedAt ? 'Thiết bị chưa kết nối'

@@ -19,6 +19,11 @@
         "applied": {
           ".write": "auth != null && root.child('access').child($dev).child(auth.uid).val() === 'device'"
         },
+        "profile": {
+          ".write": "auth != null && root.child('access').child($dev).child(auth.uid).val() === 'owner'",
+          "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40" },
+          "$other": { ".validate": false }
+        },
         "control": {
           ".write": "auth != null && (root.child('access').child($dev).child(auth.uid).val() === 'owner' || root.child('access').child($dev).child(auth.uid).val() === 'device')",
           "settings": {

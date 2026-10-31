@@ -15,7 +15,8 @@ class AppSettings extends ChangeNotifier {
   static const _kBaseUrl = 'settings.wearableBaseUrl';
   static const _kSosPhone = 'settings.sosPhone';
   static const _kSosName = 'settings.sosName';
-  static const _kLastCamera = 'settings.lastCameraRemoteId';
+  static const _kPersonName = 'settings.personName';
+  static const _kLastCamera ='settings.lastCameraRemoteId';
   static const _kLastCameraDeviceId = 'settings.lastCameraDeviceId';
   static const _kBackground = 'settings.useBackgroundService';
   static const _kIosKeepAlive = 'settings.iosKeepAlive';
@@ -66,6 +67,7 @@ class AppSettings extends ChangeNotifier {
   String get wearablePassword => _wearablePassword;
   String get sosPhone => _prefs.getString(_kSosPhone) ?? '';
   String get sosName => _prefs.getString(_kSosName) ?? '';
+  String get personName => _prefs.getString(_kPersonName) ?? '';
   String? get lastCameraRemoteId => _prefs.getString(_kLastCamera);
   String? get lastCameraDeviceId => _prefs.getString(_kLastCameraDeviceId);
   bool get useBackgroundService => _prefs.getBool(_kBackground) ?? true;
@@ -96,6 +98,7 @@ class AppSettings extends ChangeNotifier {
   Future<void> setWearableBaseUrl(String v) => _setString(_kBaseUrl, normalizeBaseUrl(v));
   Future<void> setSosPhone(String v) => _setString(_kSosPhone, v.trim());
   Future<void> setSosName(String v) => _setString(_kSosName, v.trim());
+  Future<void> setPersonName(String v) => _setString(_kPersonName, v.trim());
   Future<void> setLastCameraRemoteId(String? v) => _setString(_kLastCamera, v);
   Future<void> setLastCameraDeviceId(String? v) => _setString(_kLastCameraDeviceId, v);
   Future<void> setFirebaseApiKeyOverride(String? v) => _setString(_kFbApiKey, v?.trim());

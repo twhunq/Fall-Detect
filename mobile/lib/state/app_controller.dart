@@ -8,6 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../config.dart';
 import '../core/fusion/alert_models.dart';
 import '../core/models/cloud_settings.dart';
+import '../core/presence.dart' as pres;
+import '../core/presence.dart' show WearablePresence, kDefaultPersonName;
 import '../core/protocol/ble_protocol.dart';
 import '../platform/alarm_player.dart';
 import '../platform/monitor_backend.dart';
@@ -114,6 +116,37 @@ class AppController extends ChangeNotifier {
   /// Kênh hiển thị: kênh bộ nhớ đã báo + BLE của isolate UI.
   ChannelHealth get health => _health.copyWith(ble: _bleConnected);
 
+  /// Lần cuối nhận được tin từ vòng đeo (trạng thái cục bộ hoặc cloud).
+  DateTime? get wearableLastSeen =>
+      pres.latestSeen(lastStatusAt, wearable?.updatedAt);
+
+  WearablePresence get wearablePresence => pres.wearablePresence(
+        lastStatusAt: lastStatusAt,
+        deviceUpdatedAt: wearable?.updatedAt,
+        now: _clock(),
+      );
+
+  /// % pin; null nếu chưa có dữ liệu hoặc đang cắm nguồn.
+  int? get batteryPercent {
+    final w = wearable;
+    return w == null ? null : pres.batteryPercent(w.batteryMv);
+  }
+
+  bool get onUsbPower => wearable != null && wearable!.batteryMv < 2000;
+
+  /// Tên người được theo dõi: cloud > local > mặc định.
+  String get personName {
+    if (signedIn) {
+      final p = cloudDevice['profile'];
+      final n = p is Map ? p['name'] : null;
+      if (n is String && n.isNotEmpty) return n;
+    }
+    final local = settings.personName;
+    return local.isNotEmpty ? local : kDefaultPersonName;
+  }
+
+  bool get canEditPersonName => canEditSettings;
+
   // ---- Sự cố ----
   List<AlertIncident> incidents = const [];
   AlertIncident? ringing;
@@ -141,6 +174,12 @@ class AppController extends ChangeNotifier {
   /// Tab cần mở (đặt bởi hành động như cài đặt qua hotspot); HomeShell đọc rồi xóa.
   int? requestedTab;
 
+  /// UI đọc rồi tự đặt lại false để mở trang cài đặt vòng đeo.
+  bool requestWearableSetup = false;
+
+  Timer? _presenceTimer;
+  WearablePresence? _lastPresence;
+
   Future<void> start() async {
     if (_started) return;
     _started = true;
@@ -166,7 +205,18 @@ class AppController extends ChangeNotifier {
     _health = backend.currentHealth;
     wearable = backend.lastStatus;
     _refreshIncidents(allowRing: false);
-    if (signedIn) unawaited(refreshRole());
+    if (signedIn) {
+      unawaited(refreshRole());
+      unawaited(refreshCloudDevice());
+    }
+    _lastPresence = wearablePresence;
+    _presenceTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      final p = wearablePresence;
+      if (p != _lastPresence) {
+        _lastPresence = p;
+        _notify();
+      }
+    });
     final id = settings.lastCameraRemoteId;
     if (id != null && settings.pairedCameras.isNotEmpty) {
       unawaited(_autoReconnectCamera(id));
@@ -224,6 +274,7 @@ class AppController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _presenceTimer?.cancel();
     if (_started) settings.removeListener(_notify);
     for (final s in [..._subs, ..._backendSubs]) {
       s.cancel();
@@ -361,12 +412,10 @@ class AppController extends ChangeNotifier {
     _notify();
   }
 
-  /// Gọi SOS: `tel:<sosPhone>`, rơi về 115 nếu chưa cài.
+  /// Gọi SOS: luôn gọi số cấp cứu 115.
   Future<bool> callSos() async {
-    final phone = settings.sosPhone.trim();
-    final number = phone.isEmpty ? '115' : phone;
     try {
-      return await _launcher(Uri(scheme: 'tel', path: number));
+      return await _launcher(Uri(scheme: 'tel', path: AppConfig.emergencyNumber));
     } catch (e) {
       debugPrint('Gọi SOS lỗi: $e');
       return false;
@@ -380,6 +429,7 @@ class AppController extends ChangeNotifier {
     _localMode = false;
     await _persistLocalMode?.call(false);
     await refreshRole();
+    unawaited(refreshCloudDevice());
     await backend.reload();
     _notify();
   }
@@ -404,7 +454,8 @@ class AppController extends ChangeNotifier {
   Future<void> startHotspotSetup() async {
     await settings.setWearableBaseUrl(AppConfig.wearableHotspotUrl);
     await enterLocalMode();
-    requestedTab = 0;
+    requestedTab = 2;
+    requestWearableSetup = true;
     await backend.reload();
     _notify();
   }
@@ -436,10 +487,30 @@ class AppController extends ChangeNotifier {
     _notify();
   }
 
-  Future<void> saveSos(String name, String phone) async {
-    await settings.setSosName(name);
-    await settings.setSosPhone(phone);
+  /// Lưu tên người được theo dõi (local, và cloud nếu là owner); null nếu thành công.
+  Future<String?> savePersonName(String raw) async {
+    final name = pres.normalizePersonName(raw);
+    if (name == null) return 'Tên không được để trống.';
+    if (signedIn && !canEditSettings) return 'Bạn chỉ có quyền xem.';
+    await settings.setPersonName(name);
+    if (signedIn) {
+      try {
+        await rtdb.putProfileName(settings.deviceId, name);
+        final profile = cloudDevice['profile'];
+        cloudDevice = {
+          ...cloudDevice,
+          'profile': {
+            if (profile is Map) ...Map<String, dynamic>.from(profile),
+            'name': name,
+          },
+        };
+      } catch (e) {
+        debugPrint('putProfileName lỗi: $e');
+        return 'Không lưu được tên lên đám mây. Kiểm tra kết nối mạng rồi thử lại.';
+      }
+    }
     _notify();
+    return null;
   }
 
   Future<void> setUseBackgroundService(bool v) async {

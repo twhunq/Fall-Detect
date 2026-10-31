@@ -10,6 +10,9 @@ class AppConfig {
 
   static const String defaultDeviceId = 'baonga-01';
 
+  /// Số cấp cứu mà nút SOS gọi.
+  static const String emergencyNumber = '115';
+
   /// Cổng UDP quảng bá cảnh báo trong mạng LAN.
   static const int udpPort = 4210;
 

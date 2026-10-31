@@ -80,6 +80,12 @@ class FirebaseRtdbClient {
         body: jsonEncode(s.toJson()));
   }
 
+  /// Tên người được theo dõi, dùng chung cả nhà (chỉ owner ghi được).
+  Future<void> putProfileName(String deviceId, String name) async {
+    await _send('PUT', await _uri('devices/$deviceId/profile/name'),
+        body: jsonEncode(name));
+  }
+
   Future<void> requestTest(String deviceId) async {
     await _send('PUT', await _uri('devices/$deviceId/control/testAt'),
         body: jsonEncode({'.sv': 'timestamp'}));

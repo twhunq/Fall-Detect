@@ -20,8 +20,9 @@ import 'package:bao_nga_iot/services/secure_store.dart';
 import 'package:bao_nga_iot/services/wearable_lan_service.dart';
 import 'package:bao_nga_iot/state/app_controller.dart';
 import 'package:bao_nga_iot/ui/alarm_screen.dart';
-import 'package:bao_nga_iot/ui/camera_tab.dart';
 import 'package:bao_nga_iot/ui/home_shell.dart';
+import 'package:bao_nga_iot/ui/overview_tab.dart';
+import 'package:bao_nga_iot/ui/settings/camera_settings_page.dart';
 import 'package:bao_nga_iot/ui/theme.dart';
 
 // ---- Bản giả (không gọi plugin) ----
@@ -168,7 +169,7 @@ class Harness {
   final FakeNotifier notifier;
 }
 
-Future<Harness> makeHarness(WidgetTester tester) async {
+Future<Harness> makeHarness(WidgetTester tester, {DateTime Function()? clock}) async {
   late Harness h;
   await tester.runAsync(() async {
     SharedPreferences.setMockInitialValues({});
@@ -192,6 +193,7 @@ Future<Harness> makeHarness(WidgetTester tester) async {
       isIOS: false,
       localMode: true,
       launcher: (_) async => true,
+      clock: clock,
     );
     await controller.start();
     h = Harness(controller, backend, alarm, notifier);
@@ -217,42 +219,77 @@ AlertIncident makeIncident({Set<AlertOrigin>? origins}) => AlertIncident(
       impactG: 3.2,
     );
 
+Finder _navLabel(String label) =>
+    find.descendant(of: find.byType(NavigationBar), matching: find.text(label));
+
+void _bigView(WidgetTester tester) {
+  tester.view.physicalSize = const Size(390, 1600);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+}
+
 void main() {
-  testWidgets('HomeShell hiển thị 4 tab và chuyển được', (tester) async {
-    tester.view.physicalSize = const Size(800, 1600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
+  testWidgets('HomeShell có 3 tab và chuyển được', (tester) async {
+    _bigView(tester);
     final h = await makeHarness(tester);
 
     await tester.pumpWidget(wrap(h.controller, const HomeShell()));
     await tester.pump();
 
-    final nav = find.byType(NavigationBar);
-    for (final label in ['Vòng đeo', 'Camera AI', 'Nhật ký', 'Cài đặt & SOS']) {
-      expect(find.descendant(of: nav, matching: find.text(label)), findsOneWidget);
+    for (final label in ['Tổng quan', 'Lịch sử', 'Cài đặt']) {
+      expect(_navLabel(label), findsOneWidget);
     }
-    // Chip sức khỏe kênh trên AppBar.
-    for (final ch in ['UDP', 'BLE', 'Cloud', 'LAN']) {
-      expect(find.text(ch), findsWidgets);
-    }
+    expect(find.text('Chưa có sự cố nào'), findsOneWidget); // dòng "Gần đây"
 
-    await tester.tap(find.descendant(of: nav, matching: find.text('Camera AI')));
+    await tester.tap(_navLabel('Lịch sử'));
     await tester.pump();
-    expect(find.text('Quét camera'), findsOneWidget);
+    expect(find.text('Tất cả'), findsOneWidget);
+    expect(find.text('Không cử động'), findsOneWidget);
+    expect(find.text('Chưa có sự cố nào'), findsOneWidget);
 
-    await tester.tap(find.descendant(of: nav, matching: find.text('Nhật ký')));
+    await tester.tap(_navLabel('Cài đặt'));
     await tester.pump();
-    expect(find.text('Chưa có sự cố nào.'), findsOneWidget);
-
-    await tester.tap(find.descendant(of: nav, matching: find.text('Cài đặt & SOS')));
-    await tester.pump();
-    expect(find.text('Lưu cài đặt'), findsOneWidget);
+    expect(find.text('Người được theo dõi'), findsOneWidget);
+    expect(find.text('Chẩn đoán'), findsOneWidget);
+    expect(find.byKey(const Key('sosPhone')), findsNothing);
   });
 
-  testWidgets('AlarmScreen: nhãn, nút, nâng cấp đa nguồn, xác nhận', (tester) async {
-    tester.view.physicalSize = const Size(800, 1600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
+  testWidgets('Tổng quan: hiện "đang an toàn" khi vòng đeo online', (tester) async {
+    _bigView(tester);
+    final h = await makeHarness(tester);
+    await tester.pumpWidget(wrap(h.controller, const Scaffold(body: OverviewTab())));
+    await tester.pump();
+    expect(find.textContaining('Đang kết nối…'), findsOneWidget); // chưa có dữ liệu
+
+    h.backend.statusCtl.add(const WearableStatus(activity: 'ngoi', batteryMv: 3900));
+    await tester.pump();
+    await tester.pump();
+    expect(find.textContaining('đang an toàn'), findsOneWidget);
+    expect(find.textContaining('Đang ngồi'), findsOneWidget);
+    expect(find.text('Đang theo dõi'), findsOneWidget);
+  });
+
+  testWidgets('Tổng quan: hiện "Mất tín hiệu" khi vòng đeo offline', (tester) async {
+    _bigView(tester);
+    var now = DateTime(2025, 10, 28, 10, 0);
+    final h = await makeHarness(tester, clock: () => now);
+    await tester.pumpWidget(wrap(h.controller, const Scaffold(body: OverviewTab())));
+    await tester.pump();
+
+    h.backend.statusCtl.add(const WearableStatus(batteryMv: 3900));
+    await tester.pump();
+    await tester.pump();
+    expect(find.textContaining('đang an toàn'), findsOneWidget);
+
+    now = now.add(const Duration(minutes: 12));
+    await tester.pump(const Duration(seconds: 6)); // bộ đếm 5 s của tab làm mới giao diện
+    expect(find.text('Mất tín hiệu từ vòng đeo'), findsOneWidget);
+    expect(find.textContaining('Lần cuối nhận được lúc 10:00'), findsOneWidget);
+    expect(find.textContaining('đang an toàn'), findsNothing);
+  });
+
+  testWidgets('AlarmScreen: tiêu đề, nút, nâng cấp đa nguồn, xác nhận', (tester) async {
+    _bigView(tester);
     final h = await makeHarness(tester);
 
     final inc = makeIncident();
@@ -263,36 +300,36 @@ void main() {
 
     await tester.pumpWidget(wrap(h.controller, const AlarmScreen()));
     await tester.pump();
-    expect(find.text('TÉ NGÃ — Vòng đeo'), findsOneWidget);
-    expect(find.text('GỌI CẤP CỨU / NGƯỜI THÂN NGAY'), findsOneWidget);
-    expect(find.text('ĐÃ KIỂM TRA — TẮT CHUÔNG'), findsOneWidget);
+    expect(find.text('Người thân có thể đã ngã'), findsOneWidget);
+    expect(find.text('Phát hiện bởi vòng đeo'), findsOneWidget);
+    expect(find.text('Gọi cấp cứu 115'), findsOneWidget);
+    expect(find.text('Đã kiểm tra, tắt chuông'), findsOneWidget);
 
-    // Camera xác nhận thêm: nhãn nâng cấp trực tiếp.
+    // Camera xác nhận thêm: chip nâng cấp trực tiếp.
     inc.origins.add(AlertOrigin.camera);
     inc.deviceIds[AlertOrigin.camera] = 'CBC-ABCDEF';
     h.backend.resultsCtl.add(FusionResult(FusionAction.fused, inc));
     await tester.pump();
     await tester.pump();
-    expect(find.text('ĐA NGUỒN XÁC NHẬN (Vòng đeo + Camera AI)'), findsOneWidget);
+    expect(find.text('Vòng đeo và camera cùng xác nhận'), findsOneWidget);
 
-    await tester.tap(find.text('ĐÃ KIỂM TRA — TẮT CHUÔNG'));
+    await tester.tap(find.text('Đã kiểm tra, tắt chuông'));
     await tester.pump();
     expect(h.backend.acked, ['inc-1']);
     expect(h.alarm.stops, 1);
     expect(h.controller.ringing, isNull);
   });
 
-  testWidgets('Cài đặt: báo lỗi khi nhập 6 Chat ID', (tester) async {
-    tester.view.physicalSize = const Size(800, 1600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
+  testWidgets('Cài đặt › Telegram: báo lỗi khi nhập 6 Chat ID', (tester) async {
+    _bigView(tester);
     final h = await makeHarness(tester);
 
     await tester.pumpWidget(wrap(h.controller, const HomeShell()));
     await tester.pump();
-    final nav = find.byType(NavigationBar);
-    await tester.tap(find.descendant(of: nav, matching: find.text('Cài đặt & SOS')));
+    await tester.tap(_navLabel('Cài đặt'));
     await tester.pump();
+    await tester.tap(find.text('Telegram'));
+    await tester.pumpAndSettle();
 
     await tester.enterText(find.byKey(const Key('chatIds')), '1, 2, 3, 4, 5, 6');
     final save = find.byKey(const Key('saveSettings'));
@@ -301,6 +338,24 @@ void main() {
     await tester.tap(save);
     await tester.pump();
     expect(find.text('Tối đa 5 Chat ID.'), findsOneWidget);
+    expect(find.byKey(const Key('inactiveMin')), findsOneWidget);
+  });
+
+  testWidgets('Cài đặt › Chẩn đoán › Kết nối thủ công mở được', (tester) async {
+    _bigView(tester);
+    final h = await makeHarness(tester);
+
+    await tester.pumpWidget(wrap(h.controller, const HomeShell()));
+    await tester.pump();
+    await tester.tap(_navLabel('Cài đặt'));
+    await tester.pump();
+    await tester.tap(find.text('Chẩn đoán'));
+    await tester.pumpAndSettle();
+    expect(find.text('Đường nhận cảnh báo'), findsOneWidget);
+    await tester.tap(find.text('Địa chỉ vòng đeo và mật khẩu'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('wearableUrl')), findsOneWidget);
+    expect(find.byKey(const Key('wearablePassword')), findsOneWidget);
   });
 
   test('Camera BLE: tự nối lại chọn đúng khóa khi ghép 2 camera và xóa khi ngắt tay', () async {
@@ -378,8 +433,8 @@ void main() {
     c2.dispose();
   });
 
-  testWidgets('CameraTab: bấm Bỏ ghép cập nhật ngay giao diện', (tester) async {
-    tester.view.physicalSize = const Size(800, 1600);
+  testWidgets('Trang Camera: bấm Bỏ ghép cập nhật ngay giao diện', (tester) async {
+    tester.view.physicalSize = const Size(390, 1600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -409,7 +464,7 @@ void main() {
     });
     addTearDown(c.dispose);
 
-    await tester.pumpWidget(wrap(c, const Scaffold(body: CameraTab())));
+    await tester.pumpWidget(wrap(c, const CameraSettingsPage()));
     await tester.pump();
     expect(find.text('CBC-123456'), findsOneWidget);
 

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../services/firebase_auth_client.dart';
 import '../state/app_controller.dart';
 import 'theme.dart';
+import 'widgets/common.dart';
 
 /// Đăng nhập Firebase (email/mật khẩu) hoặc chọn chế độ nội mạng.
 class LoginScreen extends StatefulWidget {
@@ -50,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final go = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cài đặt qua Hotspot'),
+        title: const Text('Cài đặt vòng đeo mới'),
         content: const Text(
             'Vòng đeo chưa có Wi-Fi sẽ phát mạng "BaoNga-Setup-XXXX".\n\n'
             '1. Vào Cài đặt Wi-Fi của điện thoại và kết nối mạng đó.\n'
@@ -70,8 +71,9 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.read<AppController>();
-    final colors = context.statusColors;
+    final t = context.tokens;
     return Scaffold(
+      backgroundColor: t.bg,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -81,26 +83,28 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(Icons.health_and_safety,
-                      size: 64, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(height: 8),
-                  Text('Báo Ngã IoT',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconTile(
+                        icon: Icons.verified_user_rounded,
+                        bg: t.primaryTint,
+                        fg: t.primary,
+                        size: 52,
+                        radius: 16,
+                        iconSize: 28),
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Báo Ngã IoT', style: AppText.largeTitle.copyWith(color: t.text)),
+                  const SizedBox(height: 6),
                   Text('Đăng nhập để xem và cài đặt từ xa',
-                      textAlign: TextAlign.center, style: TextStyle(color: colors.muted)),
-                  const SizedBox(height: 24),
+                      style: TextStyle(fontSize: 16, height: 22 / 16, color: t.textSub)),
+                  const SizedBox(height: 28),
                   TextField(
                     key: const Key('loginEmail'),
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.email],
-                    decoration: const InputDecoration(
-                        labelText: 'Email', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Email'),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -109,38 +113,38 @@ class _LoginScreenState extends State<LoginScreen> {
                     obscureText: true,
                     autofillHints: const [AutofillHints.password],
                     onSubmitted: (_) => _signIn(),
-                    decoration: const InputDecoration(
-                        labelText: 'Mật khẩu', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Mật khẩu'),
                   ),
                   if (_error != null)
                     Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: Text(_error!, style: TextStyle(color: colors.bad)),
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(_error!, style: TextStyle(fontSize: 14, color: t.badText)),
                     ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   FilledButton(
                     onPressed: _busy ? null : _signIn,
                     child: _busy
                         ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2))
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : const Text('Đăng nhập'),
                   ),
-                  const SizedBox(height: 24),
-                  const Divider(),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: _busy ? null : c.enterLocalMode,
-                    icon: const Icon(Icons.lan),
-                    label: const Text('Chế độ nội mạng (không đăng nhập)'),
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: _busy ? null : _hotspot,
-                    icon: const Icon(Icons.wifi_tethering),
-                    label: const Text('Cài đặt qua Hotspot BaoNga-Setup-XXXX'),
-                  ),
+                  const SizedBox(height: 28),
+                  GroupSection(children: [
+                    ListRow(
+                      leading: const IconTile(icon: Icons.home_work_outlined),
+                      title: 'Chế độ nội mạng',
+                      subtitle: 'Không cần đăng nhập',
+                      onTap: _busy ? null : c.enterLocalMode,
+                    ),
+                    ListRow(
+                      leading: const IconTile(icon: Icons.wifi_tethering_rounded),
+                      title: 'Cài đặt vòng đeo mới',
+                      subtitle: 'Qua mạng BaoNga-Setup-XXXX',
+                      onTap: _busy ? null : _hotspot,
+                    ),
+                  ]),
                 ],
               ),
             ),
