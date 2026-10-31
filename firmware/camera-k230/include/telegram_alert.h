@@ -293,7 +293,7 @@ private:
     m.reserve(512);
 
     m += F("🚨 <b>CẢNH BÁO NGÃ</b> 🚨\n");
-    m += F("<i>Hệ thống AIoT giám sát người cao tuổi</i>\n");
+    m += F("<i>Hệ thống IoT giám sát người cao tuổi</i>\n");
     m += F(TG_RULE "\n");
 
     // Ten bien khong dat la "clock": <time.h> da co san ham clock().
@@ -333,7 +333,7 @@ private:
     m.reserve(512);
 
     m += F("✅ <b>HỆ THỐNG ĐÃ SẴN SÀNG</b>\n");
-    m += F("<i>AIoT cảnh báo ngã cho người cao tuổi · Camera K230</i>\n");
+    m += F("<i>IoT cảnh báo ngã cho người cao tuổi · Camera K230</i>\n");
     m += F(TG_RULE "\n");
 
     m += F("🏷 <b>Thiết bị:</b> ");
@@ -432,7 +432,7 @@ private:
     client.print(method);
     client.print(F(" HTTP/1.1\r\nHost: "));
     client.print(F(TELEGRAM_API_HOST));
-    client.print(F("\r\nUser-Agent: ESP32-AIoT-FallDetect\r\n"
+    client.print(F("\r\nUser-Agent: ESP32-IoT-FallDetect\r\n"
                    "Content-Type: application/x-www-form-urlencoded\r\n"
                    "Connection: close\r\nContent-Length: "));
     client.print(form.length());

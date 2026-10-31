@@ -1,4 +1,4 @@
-# Hệ thống AIoT Phát hiện & Cảnh báo Té ngã (`Fall_detect`)
+# Hệ thống IoT Phát hiện & Cảnh báo Té ngã (`Fall_detect`)
 
 Hệ thống giám sát và cảnh báo té ngã đa tầng cho người cao tuổi, kết hợp hai nhánh phần cứng AI tại biên (**Edge AI**) và nền tảng **Cloud Realtime**:
 
@@ -142,6 +142,6 @@ powershell -ExecutionPolicy Bypass -File scripts\clean_cache.ps1
 |---|---|---|
 | 1 | **UDP LAN Emergency Burst**: `BAONGA|1|<seq>|<device_id>|<FALL\|INACTIVE\|RESUMED>|<metric>|<ip>` tới cổng `4210`, 3 gói cách 20 ms (broadcast + unicast tới 4 điện thoại gần nhất đã gọi Web Portal) | `firmware/wearable/.../lan_alert_*.h`, `firmware/camera-k230/include/lan_alert_udp.h` |
 | 2 | **BLE không chặn**: NOTIFY đầu tại 0 ms, 2 lần lặp mỗi 400 ms trong `BleAlert::loop()` (bỏ `delay(400)`) | `firmware/camera-k230/include/ble_alert.h` |
-| 3 | **Pre-Warm** khi va đập ≥ 2 g mở ứng viên ngã: tắt Modem Sleep ~10 s, giữ sẵn phiên TLS Firebase; ứng viên bị hủy thì không phát gì | `notifier.h` (`boost`), `cloud_sync.h` (`prewarm`) |
-| 4 | **Zero-Wait & Fast-Flush**: cập nhật trạng thái ngay, đánh thức tác vụ bằng task notification, `TCP_NODELAY`; đẩy `alarm` lên Firebase trên ống TLS nóng rồi nhường `TlsGate` cho Telegram → Gmail (luôn tối đa 1 phiên TLS) | `fall_detection_esp32.ino`, `cloud_sync.h` |
+| 3 | **Thiết lập kết nối trước** (*connection pre-warming*) khi va đập ≥ 2 g làm phát sinh sự kiện nghi ngã: tắt Modem Sleep ~10 s, dựng sẵn phiên TLS Firebase; sự kiện bị loại bỏ thì không phát gì | `notifier.h` (`boost`), `cloud_sync.h` (`prewarm`) |
+| 4 | **Zero-Wait & Fast-Flush**: cập nhật trạng thái ngay, đánh thức tác vụ bằng task notification, `TCP_NODELAY`; đẩy `alarm` lên Firebase trên phiên TLS dựng sẵn (keep-alive) rồi nhường `TlsGate` cho Telegram → Gmail (luôn tối đa 1 phiên TLS) | `fall_detection_esp32.ino`, `cloud_sync.h` |
 | 5 | **Đua đa kênh & hợp nhất**: app nghe UDP + BLE + Firebase SSE + Web Portal; gói tới trước kích hoạt báo động, bản lặp bị khử; vòng đeo + camera trong 30 s → "ĐA NGUỒN XÁC NHẬN" | `mobile/lib/core/fusion/` |

@@ -70,10 +70,10 @@ Binary mới nằm trong `build/esp32s3/<ten_sketch>/`. Script luôn compile th�
 - Lọc nhiễu (`imu_filter.h`): áp hiệu chỉnh (trừ bias gyro, căn trục để tư thế đứng thẳng → +Z như dữ liệu huấn luyện, chuẩn hóa |g| = 1), median 3 mẫu trên từng kênh để loại xung 1 mẫu (gõ vào vỏ, nhiễu I2C; trễ 20 ms), tự bám trôi gyro chậm khi thiết bị đứng yên ≥2 giây.
 - Cửa sổ trượt 50 mẫu (1 giây), suy luận mỗi 10 mẫu (200 ms). Kết quả `nga` (confidence ≥70%) **không còn tự bật cảnh báo**, chỉ là một bằng chứng cho bộ xác nhận ngã.
 - Xác nhận ngã (`fall_detector.h`), tham số trong `detection_config.h`:
-  1. Mở ứng viên khi có **va đập** |a| ≥ 2,0 g (sau lọc). Cử động nhẹ, đi bộ, vung tay không đạt ngưỡng này.
+  1. Phát hiện nghi ngã (*fall candidate*) khi có **va đập** |a| ≥ 2,0 g (sau lọc). Cử động nhẹ, đi bộ, vung tay không đạt ngưỡng này.
   2. Cần ít nhất một bằng chứng: rơi tự do |a| < 0,6 g trong 1 giây trước va đập, **hoặc** xoay ≥120 °/s quanh va đập, **hoặc** mô hình ML báo `nga` trong 1,5 giây sau va đập.
-  3. Bỏ qua 1 giây dội/lăn, rồi quan sát 2 giây: ≥80% mẫu phải nằm yên (||a|−1| < 0,2 g, gyro < 30 °/s) và tư thế lệch ≥45° so với tư thế trước va đập. Đứng dậy/đi tiếp hoặc chỉ ngồi phịch xuống sẽ bị loại.
-  4. Cảnh báo bật khoảng 3 giây sau va đập. Mỗi ứng viên in một dòng `[FALL?] impact=… rot=… ff=… ml=… still=…% posture=…deg -> NGA/bo qua` để chỉnh ngưỡng trên dữ liệu đeo thật.
+  3. Pha ổn định 1 giây (bỏ qua dội/lăn), rồi pha xác minh tư thế 2 giây: ≥80% mẫu phải nằm yên (||a|−1| < 0,2 g, gyro < 30 °/s) và tư thế lệch ≥45° so với tư thế trước va đập. Đứng dậy/đi tiếp hoặc chỉ ngồi phịch xuống sẽ bị loại.
+  4. Cảnh báo bật khoảng 3 giây sau va đập. Mỗi sự kiện nghi ngã in một dòng `[FALL?] impact=… rot=… ff=… ml=… still=…% posture=…deg -> NGA/bo qua` để chỉnh ngưỡng trên dữ liệu đeo thật.
 - Thứ tự đặc trưng giữ nguyên: từng kênh `ax, ay, az, gx, gy, gz`, mỗi kênh `[mean, std, min, max, rms]`. Trọng số và chuẩn hóa không đổi. Chỉ dùng mảng cố định; tính trực tiếp trên bộ đệm vòng vì các thống kê không phụ thuộc thứ tự mẫu.
 - Nếu khoảng cách hai mẫu vượt 30 ms, loại cửa sổ đang gom và xóa chuỗi xác nhận ngã. Không ghép mẫu trước/sau lỗi, không tự điền mẫu giả.
 - Timeout I2C 5 ms, kiểm tra kết quả ghi/đọc cấu hình. Mất dữ liệu 100 ms hoặc lỗi giao dịch sẽ báo lỗi, khởi tạo lại sau 2 giây, thử giải phóng bus bằng tối đa 9 xung SCL. Reset/đợi cảm biến theo trạng thái, không khóa vòng lặp hàng trăm ms. Xem [API I2C Espressif](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/i2c.html) và [register map MPU6050](https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6000-Register-Map.pdf).
