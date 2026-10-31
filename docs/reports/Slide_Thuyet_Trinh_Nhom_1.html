@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" translate="no">
 <head>
 <meta charset="UTF-8">
+<meta name="google" content="notranslate">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Báo Ngã IoT, Nhóm 1</title>
 <style>
@@ -22,9 +23,17 @@
   --t-in:520ms; --t-out:260ms; --t-frag:340ms;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:#0B1824;overflow:hidden}
+html,body{height:100%;overflow:hidden}
+/* Nền trang trùng nền slide (kể cả lưới) để không còn viền tối quanh khung 16:9 */
+body{background-color:var(--paper);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px)}
 body{font-family:var(--text);color:var(--ink);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 #viewport{position:fixed;inset:0;overflow:hidden;touch-action:pan-y}
+#fsbtn{position:fixed;right:14px;bottom:14px;z-index:60;width:40px;height:40px;border-radius:10px;border:1px solid var(--rule);background:rgba(255,255,255,.82);color:var(--ink2);display:grid;place-items:center;cursor:pointer;opacity:.55;transition:opacity 160ms ease,transform 160ms ease,background-color 160ms ease}
+#fsbtn:hover,#fsbtn:focus-visible{opacity:1;background:#fff}#fsbtn:active{transform:scale(.94)}
+#fsbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#fsbtn .i-off,.isfs #fsbtn .i-on{display:none}.isfs #fsbtn .i-off{display:block}
+.isfs.idle #fsbtn{opacity:0;pointer-events:none}
+.instant #fsbtn,.static #fsbtn,.winfs #fsbtn{display:none}
 #stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;overflow:hidden;
   background-color:var(--paper);
   background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
@@ -792,6 +801,7 @@ html:not(.rm) .dv .f.on{transition-delay:calc(var(--i,0)*130ms)}
 </div>
 </div>
 
+<button id="fsbtn" type="button" aria-label="Toàn màn hình (F)" title="Toàn màn hình (F)"><svg class="i-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><svg class="i-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg></button>
 <div id="notes" aria-live="polite"><h4><span id="ntitle"></span><span><button id="npop">Mở cửa sổ riêng</button> <button id="nclose">Đóng (N)</button></span></h4><div id="nbody"></div></div>
 <div id="help"><b>Phím tắt</b><br>
 <kbd>→</kbd> <kbd>Space</kbd> <kbd>PgDn</kbd> bước tiếp, <kbd>←</kbd> <kbd>PgUp</kbd> lùi<br>
@@ -826,7 +836,7 @@ function stopAll(){tasks.clear();timers.forEach(clearTimeout);timers=[];}
 const easeOut=p=>1-Math.pow(1-p,3);
 
 /* ---------- scale ---------- */
-function fit(){const s=Math.min(innerWidth/1920,innerHeight/1080);stage.style.transform=`translate(${(innerWidth-1920*s)/2}px,${(innerHeight-1080*s)/2}px) scale(${s})`;}
+function fit(){const s=Math.min(innerWidth/1920,innerHeight/1080),ox=(innerWidth-1920*s)/2,oy=(innerHeight-1080*s)/2;stage.style.transform=`translate(${ox}px,${oy}px) scale(${s})`;document.body.style.backgroundSize=`${48*s}px ${48*s}px`;document.body.style.backgroundPosition=`${ox-s}px ${oy-s}px`;}
 addEventListener("resize",fit);fit();
 
 /* ---------- path helpers ---------- */
@@ -1469,6 +1479,22 @@ function onKey(e){const k=e.key;if(e.altKey||e.ctrlKey||e.metaKey)return;
   else if(k==="?"||k==="h"||k==="H"){$("#help").classList.toggle("open");}
   else if(k==="m"||k==="M"){document.documentElement.classList.remove("instant");setRM(!RM);const c=cur,s0=step;cur=-1;go(c,s0);toast(RM?"Đã tắt hoạt cảnh: hiện trạng thái cuối":"Đã bật hoạt cảnh");}}
 addEventListener("keydown",onKey);
+// Trình duyệt chỉ cho vào toàn màn hình sau một thao tác của người dùng,
+// nên lần bấm phím hoặc nhấp chuột đầu tiên sẽ tự mở toàn màn hình (?nofs để tắt).
+let autoFs=!/[?&](nofs|static|instant)/.test(location.search)&&!!document.documentElement.requestFullscreen;
+function tryFs(e){if(!autoFs)return;if(e.target&&e.target.closest&&e.target.closest("#fsbtn")){autoFs=false;return;}autoFs=false;removeEventListener("keydown",tryFs,true);removeEventListener("pointerdown",tryFs,true);
+  if(e.type==="keydown"&&(e.key==="f"||e.key==="F"))return;
+  if(!document.fullscreenElement)document.documentElement.requestFullscreen().catch(()=>{});}
+addEventListener("keydown",tryFs,true);addEventListener("pointerdown",tryFs,true);
+const fsb=$("#fsbtn"),R=document.documentElement;
+function toggleFs(){if(!document.fullscreenElement){R.requestFullscreen&&R.requestFullscreen().catch(()=>{});}else document.exitFullscreen();}
+fsb.addEventListener("click",e=>{e.stopPropagation();toggleFs();fsb.blur();});
+fsb.addEventListener("pointerup",e=>e.stopPropagation());
+function fsState(){const el=!!document.fullscreenElement,win=innerWidth>=screen.width-1&&innerHeight>=screen.height-1;R.classList.toggle("isfs",el);R.classList.toggle("winfs",win&&!el);}
+document.addEventListener("fullscreenchange",()=>{fsState();wake();});addEventListener("resize",fsState);fsState();
+let idleT=0;function wake(){R.classList.remove("idle");clearTimeout(idleT);idleT=setTimeout(()=>R.classList.add("idle"),2500);}
+addEventListener("pointermove",wake,{passive:true});
+if(autoFs&&!document.fullscreenElement&&!(innerHeight>=screen.height-1))setTimeout(()=>toast("Bấm phím bất kỳ hoặc nhấp chuột để vào toàn màn hình",3200),600);
 const vp=$("#viewport");let px=0,py=0,pid=null;
 vp.addEventListener("pointerdown",e=>{pid=e.pointerId;px=e.clientX;py=e.clientY;});
 vp.addEventListener("pointerup",e=>{if(pid!==e.pointerId)return;pid=null;if(ov)return;
