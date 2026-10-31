@@ -1,0 +1,83 @@
+# Build app "Bao Nga IoT" (mobile/): Android APK + iOS IPA chua ky (cai bang Sideloadly).
+name: build-mobile
+
+on:
+  push:
+    branches: [main]
+    paths: ['mobile/**', '.github/workflows/build-mobile.yml']
+  pull_request:
+    paths: ['mobile/**', '.github/workflows/build-mobile.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: build-mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: '3.47.9' # cung ban voi D:\dev-tools\flutter khi phat trien
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('mobile/android/**/*.gradle*', 'mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - name: Build APK (fat + split-per-abi)
+        run: |
+          flutter build apk --release
+          flutter build apk --release --split-per-abi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: baonga-android
+          path: |
+            mobile/build/app/outputs/flutter-apk/app-release.apk
+            mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          if-no-files-found: error
+
+  build-ios:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - name: Build iOS (khong ky)
+        run: flutter build ios --release --no-codesign
+      - name: Dong goi IPA chua ky cho Sideloadly
+        run: |
+          rm -rf build/ipa && mkdir -p build/ipa/Payload
+          cp -R build/ios/iphoneos/Runner.app build/ipa/Payload/
+          cd build/ipa && zip -qry baonga-ios-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: baonga-ios-unsigned
+          path: mobile/build/ipa/baonga-ios-unsigned.ipa
+          if-no-files-found: error

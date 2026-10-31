@@ -1,4 +1,56 @@
+# Toolchains & local IDE directories
 .tools/
+.vscode/
+.idea/
+
+# Firmware & host test build outputs
 **/build/
-**/__pycache__/
+**/.pio/
+
+# Local secrets & credentials (never commit)
 **/secrets.h
+**/device_secrets.h
+cloud/access.json
+
+# Flutter app (mobile/): build outputs, generated/ephemeral files, signing keys, packages
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/android/.gradle/
+mobile/android/.kotlin/
+mobile/android/local.properties
+mobile/android/key.properties
+mobile/android/app/.cxx/
+mobile/ios/Flutter/ephemeral/
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Flutter/flutter_export_environment.sh
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+*.jks
+*.keystore
+*.ipa
+*.apk
+*.aab
+mobile/qr/
+
+# Firebase caches & logs
+**/.firebase/
+firebase-debug.log
+database-debug.log
+
+# Python caches & virtual environments
+**/__pycache__/
+*.py[cod]
+.venv/
+
+# KiCad local state, backups & locks
+*-backups/
+_autosave-*
+fp-info-cache
+*.kicad_prl
+*.lck
+
+# OS metadata
+.DS_Store
+Thumbs.db

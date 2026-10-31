@@ -1,0 +1,9 @@
+{
+  "access": {
+    "baonga-01": {
+      "<UID_THIET_BI>": "device",
+      "<UID_CHU_SO_HUU>": "owner",
+      "<UID_NGUOI_XEM>": "viewer"
+    }
+  }
+}
