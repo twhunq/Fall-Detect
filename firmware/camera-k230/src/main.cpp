@@ -69,6 +69,11 @@
  * ========================================================================== */
 
 #include <Arduino.h>
+#include <driver/adc.h>
+#include <driver/gpio.h>
+#include <driver/rtc_io.h>
+#include <driver/uart.h>
+#include <esp_adc_cal.h>
 
 // Dat ten rieng TRUOC khi include telegram_alert.h - tin nhan gui di se ghi
 // dung day la camera chu khong phai vong deo.
@@ -131,7 +136,12 @@ static int g_doDaiDong = 0;
 static unsigned long g_lanCuoiNhanHB = 0;
 static unsigned long g_lanCuoiBaoNga = 0;
 static unsigned long g_lanCuoiGuiCfg = 0;
+static unsigned long g_mocKhoiDong = 0;
+static unsigned long g_lanCuoiCanhBaoChuaCoK230 = 0;
+static unsigned long g_lanCuoiInHB = 0;
 static bool g_k230Song = false;
+static bool g_daTungNhanHB = false;
+static bool g_daGanChanTx = false;
 
 static String g_cfgDaGui;
 static String g_diaChiXemHinh; // "CAM|ip|cong|duong_dan"
@@ -159,6 +169,10 @@ void guiCauHinhSangK230(bool epGui) {
   const bool denHen = (now - g_lanCuoiGuiCfg >= CFG_RESEND_MS);
 
   if (!epGui && !daDoi && !denHen) {
+    return;
+  }
+
+  if (!g_daGanChanTx) {
     return;
   }
 
@@ -280,13 +294,31 @@ void xuLyDong(const char *dong) {
 
   // ---- Nhip tim ----
   if (strncmp(dong, "HB,", 3) == 0) {
-    g_lanCuoiNhanHB = millis();
+    const unsigned long now = millis();
+    g_lanCuoiNhanHB = now;
+    float fps = 0.0f;
+    int soNguoi = 0;
+    sscanf(dong + 3, "%f,%d", &fps, &soNguoi);
+
     if (!g_k230Song) {
       g_k230Song = true;
-      Serial.println(F("[CAU NOI] K230 da song tro lai."));
+      Serial.print(g_daTungNhanHB ? F("[CAU NOI] [OK] K230 da song tro lai (fps=")
+                                  : F("[CAU NOI] [OK] Da nhan tin hieu K230 (fps="));
+      Serial.print(fps, 1);
+      Serial.print(F(", nguoi="));
+      Serial.print(soNguoi);
+      Serial.println(F(")."));
+      g_daTungNhanHB = true;
+      g_lanCuoiInHB = now;
       capNhatThongTinChoApp();
       // K230 vua khoi dong lai thi khong con nho cau hinh, gui lai ngay.
       guiCauHinhSangK230(true);
+    } else if (now - g_lanCuoiInHB >= 30000UL) {
+      g_lanCuoiInHB = now;
+      Serial.print(F("[K230] HB fps="));
+      Serial.print(fps, 1);
+      Serial.print(F(" nguoi="));
+      Serial.println(soNguoi);
     }
     return;
   }
@@ -338,6 +370,93 @@ void docUart() {
 }
 
 // ==========================================================================
+// Kiem tra trang thai dien tren 2 chan UART (GPIO18 RX, GPIO17 TX) truoc khi
+// mo UART va WiFi (ADC2 dung duoc truoc khi bat WiFi). Giup phan biet ngay:
+//   - Day tha noi / chua cam (~thay doi theo keo len/xuong)
+//   - Cham GND (< 50 mV khi keo len)
+//   - K230 chua cap nguon (~250..850 mV do diode bao ve ESD kep xuong)
+//   - K230 da co nguon nhung chua chay falldown_detect.py (~900..2400 mV)
+//   - K230 dang phat UART TX binh thuong (> 2700 mV muc IDLE 3.3V)
+// ==========================================================================
+static bool kiemTraChanDon(uint8_t pin, adc2_channel_t adcCh, const char *ten) {
+  pinMode(pin, INPUT_PULLUP);
+  delayMicroseconds(250);
+  const int dPu = digitalRead(pin);
+
+  pinMode(pin, INPUT_PULLDOWN);
+  delayMicroseconds(250);
+  const int dPd = digitalRead(pin);
+
+  const uint32_t mvThaNoi = analogReadMilliVolts(pin); // che do ANALOG High-Z
+
+  // Bat dien tro keo len ~45k tren RTC IO trong khi doc ADC2 de do sut ap tai.
+  rtc_gpio_pullup_en(static_cast<gpio_num_t>(pin));
+  rtc_gpio_pulldown_dis(static_cast<gpio_num_t>(pin));
+  delayMicroseconds(300);
+  int rawPu = 0;
+  uint32_t mvKeoLen = mvThaNoi;
+  if (adc2_get_raw(adcCh, ADC_WIDTH_BIT_12, &rawPu) == ESP_OK) {
+    esp_adc_cal_characteristics_t chars;
+    esp_adc_cal_characterize(ADC_UNIT_2, ADC_ATTEN_DB_12, ADC_WIDTH_BIT_12, 1100,
+                             &chars);
+    mvKeoLen = esp_adc_cal_raw_to_voltage(static_cast<uint32_t>(rawPu), &chars);
+  }
+  rtc_gpio_pullup_dis(static_cast<gpio_num_t>(pin));
+  pinMode(pin, INPUT);
+
+  Serial.print(F("[UART-CHK] GPIO"));
+  Serial.print(pin);
+  Serial.print(F(" ("));
+  Serial.print(ten);
+  Serial.print(F("): idle="));
+  Serial.print(mvThaNoi);
+  Serial.print(F("mV, pullup="));
+  Serial.print(mvKeoLen);
+  Serial.print(F("mV (pu="));
+  Serial.print(dPu);
+  Serial.print(F("/pd="));
+  Serial.print(dPd);
+  Serial.print(F(") -> "));
+
+  if (dPu == 1 && dPd == 1 && mvThaNoi >= 2500) {
+    Serial.println(F("OK (muc IDLE ~3.3V tu ngo ra TX)"));
+    return true;
+  }
+  if (dPu == 1 && dPd == 0) {
+    Serial.println(F("THA NOI / HIGH-Z (chua cam day hoac dang noi vao ngo vao RX)"));
+    return true;
+  }
+  if (mvKeoLen < 80) {
+    Serial.println(F("CHAM GND (~0V) - kiem tra co cam nham chan GND tren K230 khong"));
+    return false;
+  }
+  if (mvKeoLen <= 900) {
+    Serial.println(F("KEP DIODE (~0.4-0.8V) - bo K230 dang CHUA CAP NGUON!"));
+    return false;
+  }
+  Serial.println(F("KEO THAP (~1-2V) - K230 co nguon nhung CHUA CHAY falldown_detect.py"));
+  return true;
+}
+
+static bool kiemTraDuongDayK230() {
+  const bool rxSanSang =
+      kiemTraChanDon(PIN_UART_RX, ADC2_CHANNEL_7, "RX <- K230 TX1/IO3 chan 8");
+  const bool txSanSang =
+      kiemTraChanDon(PIN_UART_TX, ADC2_CHANNEL_6, "TX -> K230 RX1/IO4 chan 10");
+  return rxSanSang && txSanSang;
+}
+
+static void kichHoatChanTxK230() {
+  if (g_daGanChanTx) {
+    return;
+  }
+  gpio_set_drive_capability(static_cast<gpio_num_t>(PIN_UART_TX),
+                            GPIO_DRIVE_CAP_0);
+  uart_set_pin(UART_PORT, PIN_UART_TX, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE,
+               UART_PIN_NO_CHANGE);
+  g_daGanChanTx = true;
+}
+
 void setup() {
   Serial.begin(115200);
   delay(300);
@@ -350,6 +469,8 @@ void setup() {
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, LOW);
 
+  const bool k230CoAp = kiemTraDuongDayK230();
+
   // Doc ma may tu efuse va nap khoa rieng. Phai chay TRUOC BLE vi ten quang
   // ba lay tu chinh ma may nay.
   danhTinh.begin();
@@ -359,9 +480,16 @@ void setup() {
   telegram.setConfig(&cauHinh);
   relay.begin(&danhTinh, &cauHinh);
 
-  // Mo UART sang K230 truoc khi lam viec khac, de khong bo lo dong nao neu
-  // K230 khoi dong nhanh hon bo mach nay.
-  K230.begin(UART_BAUD, SERIAL_8N1, PIN_UART_RX, PIN_UART_TX);
+  // Mo UART sang K230 truoc khi lam viec khac. Neu phat hien K230 dang tat
+  // nguon (kep diode ESD ~0.3V), tam giu GPIO17 o ngo vao High-Z de khong bom
+  // dong nguoc qua diode bao ve cua K230; se tu gan TX ngay khi K230 len nguon.
+  pinMode(PIN_UART_TX, INPUT);
+  K230.begin(UART_BAUD, SERIAL_8N1, PIN_UART_RX, -1);
+  if (k230CoAp) {
+    kichHoatChanTxK230();
+  } else {
+    Serial.println(F("[CAU NOI] Tam ngat ngo ra TX (GPIO17) de tranh cap nguon nguoc sang K230 dang tat."));
+  }
   Serial.print(F("[CAU NOI] Da mo UART "));
   Serial.print(UART_BAUD);
   Serial.print(F(" baud (RX=GPIO"));
@@ -378,11 +506,22 @@ void setup() {
 
   guiCauHinhSangK230(true);
 
+  g_mocKhoiDong = millis();
+  g_lanCuoiCanhBaoChuaCoK230 = g_mocKhoiDong;
   Serial.println(F("[CAU NOI] San sang. Dang cho tin hieu tu K230..."));
 }
 
 // ==========================================================================
 void loop() {
+  // Neu luc khoi dong K230 dang tat nguon ma bay gio da bat len (RX len HIGH
+  // hoac co byte gui sang), gan chan TX ngay ma khong reset bo dem RX.
+  if (!g_daGanChanTx &&
+      (digitalRead(PIN_UART_RX) == HIGH || K230.available() > 0)) {
+    kichHoatChanTxK230();
+    Serial.println(F("[CAU NOI] [OK] Phat hien K230 da len nguon, kich hoat TX (GPIO17)."));
+    guiCauHinhSangK230(true);
+  }
+
   docUart();
 
   // Nghe lenh nap khoa tu cong cu nap khoa qua cong USB. Khong ton gi khi
@@ -397,9 +536,15 @@ void loop() {
   if (g_k230Song && g_lanCuoiNhanHB != 0 &&
       now - g_lanCuoiNhanHB > K230_TIMEOUT_MS) {
     g_k230Song = false;
+    g_lanCuoiCanhBaoChuaCoK230 = now;
     Serial.println(F("[CAU NOI] [CANH BAO] Mat tin hieu K230 qua 30 giay."));
     Serial.println(F("[CAU NOI]            Camera coi nhu khong con giam sat."));
     capNhatThongTinChoApp();
+  } else if (!g_daTungNhanHB &&
+             now - g_lanCuoiCanhBaoChuaCoK230 >= K230_TIMEOUT_MS) {
+    g_lanCuoiCanhBaoChuaCoK230 = now;
+    Serial.println(F("[CAU NOI] [CANH BAO] Chua nhan duoc tin hieu UART nao tu K230 sau 30 giay."));
+    Serial.println(F("[CAU NOI]            Kiem tra nguon K230, chuong trinh falldown_detect.py va day TX1(IO3)->GPIO18, RX1(IO4)->GPIO17, GND."));
   }
 
   guiCauHinhSangK230(false);

@@ -45,6 +45,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <esp_wifi.h>
 #include <time.h>
 
 #include "device_config.h"
@@ -71,13 +72,23 @@
 // ==========================================================================
 // Gui 1 tin "he thong da khoi dong" ngay sau khi vao duoc WiFi - de kiem tra
 // token/chat id ma khong can gia vo nga. Dat 0 neu khong muon nhan tin nay.
+#ifndef TELEGRAM_SEND_BOOT_MESSAGE
 #define TELEGRAM_SEND_BOOT_MESSAGE 1
+#endif
 
 // ---- Ten hien thi trong tin nhan ----
 // VD "Bà Nguyễn Thị A - phòng ngủ tầng 2". Sketch co the dat ten rieng
 // truoc khi include file nay.
 #ifndef TELEGRAM_DEVICE_NAME
 #define TELEGRAM_DEVICE_NAME "Thiết bị giám sát #1"
+#endif
+
+// ---- Cong suat phat Wi-Fi ----
+// Mac dinh 19.5 dBm rut dong dinh lon (gay BROWNOUT_RST khi chay cung BLE/K230)
+// va de loi ASSOC_EXPIRE / 4-way timeout tren ESP32-S3 (xem docs/validation.md).
+// Ha xuong 8.5 dBm khop voi firmware vong deo.
+#ifndef WIFI_TX_POWER
+#define WIFI_TX_POWER WIFI_POWER_8_5dBm
 #endif
 
 // ---- Mui gio de hien thi thoi gian that ----
@@ -123,12 +134,20 @@ public:
   // vao viec co mang.
   // ------------------------------------------------------------------------
   bool begin() {
+    if (strlen(_ssid()) == 0 || strcmp(_ssid(), "DIEN_TEN_WIFI_VAO_DAY") == 0) {
+      Serial.println(F("[WIFI] Chua cau hinh ten mang WiFi, bo qua ket noi."));
+      return false;
+    }
+
     Serial.print(F("[WIFI] Dang ket noi toi mang '"));
     Serial.print(_ssid());
     Serial.println(F("'..."));
 
+    WiFi.persistent(false);
     WiFi.mode(WIFI_STA);
+    _gioiHanCongSuatWiFi();
     WiFi.begin(_ssid(), _matKhau());
+    _gioiHanCongSuatWiFi();
 
     unsigned long start = millis();
     while (WiFi.status() != WL_CONNECTED &&
@@ -239,6 +258,16 @@ private:
                : TELEGRAM_CHAT_ID;
   }
 
+  // Khoa chinh sach quoc gia MANUAL (kenh 1-13) va ha cong suat phat truc tiep
+  // qua ESP-IDF. Tren Arduino-ESP32 2.0.x, WiFi.setTxPower() goi ngay sau
+  // WiFi.mode(WIFI_STA) bi bo qua do STA_STARTED_BIT bat dong bo, hoac bi AP
+  // ghi de lai len 20 dBm theo Country IE -> sut ap BROWNOUT_RST luc bat song.
+  static void _gioiHanCongSuatWiFi() {
+    wifi_country_t qg = {"VN", 1, 13, 8, WIFI_COUNTRY_POLICY_MANUAL};
+    esp_wifi_set_country(&qg);
+    esp_wifi_set_max_tx_power(static_cast<int8_t>(WIFI_TX_POWER));
+  }
+
   DeviceConfig *_cfg;
   unsigned long _lastSentTime;
   bool _hasSentOnce;
@@ -251,7 +280,12 @@ private:
   // 21:34:05 16/08/2026 thay vi "sau 12 phut ke tu khi khoi dong".
   // ========================================================================
   void syncTime() {
-    configTime(TZ_OFFSET_SEC, TZ_DST_SEC, "pool.ntp.org", "time.google.com",
+    // Phan giai DNS truoc de hoan tat ARP voi gateway; neu khong goi UDP dau
+    // tien cua SNTP de roi va lwIP cho 15 giay moi thu lai.
+    IPAddress ntpIp;
+    WiFi.hostByName("time.google.com", ntpIp);
+
+    configTime(TZ_OFFSET_SEC, TZ_DST_SEC, "time.google.com", "pool.ntp.org",
                "time.cloudflare.com");
 
     struct tm ti;
@@ -392,8 +426,10 @@ private:
     }
 
     Serial.println(F("[WIFI] Mat ket noi, dang thu ket noi lai..."));
-    WiFi.disconnect();
+    WiFi.disconnect(false, false);
+    _gioiHanCongSuatWiFi();
     WiFi.begin(_ssid(), _matKhau());
+    _gioiHanCongSuatWiFi();
 
     unsigned long start = millis();
     while (WiFi.status() != WL_CONNECTED &&

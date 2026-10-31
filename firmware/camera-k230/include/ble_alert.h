@@ -71,15 +71,13 @@
 // thu het moi kha nang roi ghi lai bang tra loi san.
 #define BLE_AUTH_NONCE_MIN_LEN 8
 
-// Muc cong suat phat BLE. Mac dinh cua thu vien chi khoang +3dBm; nang len
-// +18dBm duoc them khoang 2-3 lan tam song.
-//
-// ESP32-S3 con ho tro toi ESP_PWR_LVL_P21, nhung KHONG dat mac dinh o do:
-// cang phat manh cang rut dong dot ngot lon, nguon yeu de sut ap -> reset.
-//
+// Muc cong suat phat BLE. Mac dinh cua ESP-IDF la +3dBm (ESP_PWR_LVL_P3).
+// Dat P18 (+18dBm) rut dong dinh ~370mA, khi di chung cap USB hoac cap nguon
+// cho K230 + WiFi se gay sut ap -> BROWNOUT_RST lien tuc luc khoi dong.
 // Cac muc dung duoc: P3, P6, P9, P12, P15, P18, P21.
-// Neu thiet bi hay tu reset, ha xuong P9.
-#define BLE_TX_POWER_LEVEL ESP_PWR_LVL_P18
+#ifndef BLE_TX_POWER_LEVEL
+#define BLE_TX_POWER_LEVEL ESP_PWR_LVL_P3
+#endif
 
 // Chu ky gui nhip tim bao con song.
 #define BLE_HEARTBEAT_INTERVAL_MS 10000UL
@@ -246,12 +244,12 @@ public:
 
     BLEDevice::init(tenQuangBa);
 
-    // ---- Nang cong suat phat ----
-    // Mac dinh ESP32-S3 phat o muc rat thap; voi thiet bi canh bao thi tam
-    // song quan trong hon tiet kiem dien. Phai goi SAU BLEDevice::init().
+    // ---- Đặt công suất phát ----
+    // Phai goi SAU BLEDevice::init(). CONN_HDL0 chi hop le sau khi da co ket
+    // noi, con DEFAULT da ap dung chung cho moi ket noi moi.
     esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, BLE_TX_POWER_LEVEL);
+    esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_SCAN, BLE_TX_POWER_LEVEL);
     esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, BLE_TX_POWER_LEVEL);
-    esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_CONN_HDL0, BLE_TX_POWER_LEVEL);
 
     _server = BLEDevice::createServer();
     if (_server == nullptr) {

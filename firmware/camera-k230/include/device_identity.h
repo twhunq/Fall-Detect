@@ -349,9 +349,13 @@ private:
   // ------------------------------------------------------------------------
   bool _napKhoa() {
     // ---- Uu tien khoa da nam san trong NVS ----
+    // Mo che do doc-ghi (false) de tao vung "cbn" lan dau ma khong in loi
+    // [E][Preferences.cpp] nvs_open failed: NOT_FOUND tren Serial.
     Preferences p;
-    if (p.begin(DEVICE_NVS_NAMESPACE, true)) {
-      const size_t n = p.getBytes(DEVICE_NVS_KEY_DKEY, _key, DEVICE_KEY_LEN);
+    if (p.begin(DEVICE_NVS_NAMESPACE, false)) {
+      const size_t n = p.isKey(DEVICE_NVS_KEY_DKEY)
+                           ? p.getBytes(DEVICE_NVS_KEY_DKEY, _key, DEVICE_KEY_LEN)
+                           : 0;
       p.end();
       if (n == DEVICE_KEY_LEN) {
         Serial.println(F("[ID] Da nap khoa rieng tu NVS."));

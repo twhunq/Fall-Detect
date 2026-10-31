@@ -89,13 +89,13 @@ public:
   bool begin(const char *ssidMacDinh, const char *matKhauMacDinh,
              const char *tokenMacDinh, const char *chatIdMacDinh) {
     Preferences p;
-    if (p.begin(DEVICE_NVS_NAMESPACE, true)) {
-      _ssid = p.getString(CFG_KEY_SSID, String());
-      _matKhau = p.getString(CFG_KEY_PASS, String());
-      _token = p.getString(CFG_KEY_TOKEN, String());
-      _chatId = p.getString(CFG_KEY_CHAT, String());
-      _maNha = p.getString(CFG_KEY_HOME, String());
-      _relay = p.getString(CFG_KEY_RELAY, String());
+    if (p.begin(DEVICE_NVS_NAMESPACE, false)) {
+      _ssid = p.isKey(CFG_KEY_SSID) ? p.getString(CFG_KEY_SSID, String()) : String();
+      _matKhau = p.isKey(CFG_KEY_PASS) ? p.getString(CFG_KEY_PASS, String()) : String();
+      _token = p.isKey(CFG_KEY_TOKEN) ? p.getString(CFG_KEY_TOKEN, String()) : String();
+      _chatId = p.isKey(CFG_KEY_CHAT) ? p.getString(CFG_KEY_CHAT, String()) : String();
+      _maNha = p.isKey(CFG_KEY_HOME) ? p.getString(CFG_KEY_HOME, String()) : String();
+      _relay = p.isKey(CFG_KEY_RELAY) ? p.getString(CFG_KEY_RELAY, String()) : String();
       p.end();
     }
 
