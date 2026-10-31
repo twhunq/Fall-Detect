@@ -86,7 +86,14 @@ inline bool readBody(HTTPClient &http, String &out, uint32_t timeoutMs, size_t m
   for (String line;;) {
     if (!readLine(line)) return false;
     const long n = strtol(line.c_str(), nullptr, 16);
-    if (n == 0) return true;
+    if (n == 0) {
+      // Consume optional trailer fields and the terminating empty CRLF (RFC 9112 §7.1)
+      // so leftover "\r\n" bytes never poison the next kept-alive request on db_.
+      do {
+        if (!readLine(line)) return false;
+      } while (line.length() > 0);
+      return true;
+    }
     for (long i = 0; i < n; ++i) {
       int c;
       if (!readByte(c) || out.length() >= maxLen) return false;
@@ -293,8 +300,10 @@ class CloudSync {
   void connectError(WiFiClientSecure &client, int code) {
     char unused[2];
     int tls = client.lastError(unused, sizeof(unused));
+    const unsigned mag = tls < 0 ? unsigned(-tls) : unsigned(tls);
     // -1: the TCP connection itself failed (no route to the Internet / timeout).
-    snprintf(message_, sizeof(message_), "HTTP %d, TLS -0x%04X%s, heap %lu max %lu", code, unsigned(-tls),
+    snprintf(message_, sizeof(message_), "HTTP %d, TLS %s0x%04X%s, heap %lu max %lu", code,
+             tls < 0 ? "-" : "", mag,
              tls == -1 ? " (khong ket noi duoc Internet)" : "", (unsigned long)ESP.getFreeHeap(),
              (unsigned long)ESP.getMaxAllocHeap());
   }
@@ -302,36 +311,45 @@ class CloudSync {
   // ---- Realtime Database (REST) ----
   // method: GET, PUT or PATCH. Writes use print=silent (204, empty reply).
   bool request(const char *method, const char *path, const char *body) {
-    const uint32_t t0 = millis();
-    const bool fresh = !db_.connected(); // a new TLS handshake is needed
-    gStageCloud.set(path);
-    const bool write = body != nullptr;
-    snprintf(url_, sizeof(url_), "%s/devices/%s/%s.json?%sauth=%s", base_, CLOUD_DEVICE_ID, path,
-             write ? "print=silent&" : "", token_);
-    // Every stop() (ours or HTTPClient's) wipes the TLS context, CA bundle
-    // hook included, so attach it again before a possible reconnect.
-    db_.setCACertBundle(caBundleStart, caBundleEnd - caBundleStart);
-    if (!http_.begin(db_, url_)) return false;
-    collectBodyHeaders(http_);
-    int code = write ? http_.sendRequest(method, reinterpret_cast<uint8_t *>(const_cast<char *>(body)), strlen(body))
-                     : http_.sendRequest(method);
-    response_ = String();
-    if (code == 200 && !readBody(http_, response_, 10000)) {
-      db_.stop(); // Half-read reply: the kept-alive connection is unusable.
-      code = -11;
+    for (int attempt = 0; attempt < 2; ++attempt) {
+      const uint32_t t0 = millis();
+      const bool fresh = !db_.connected(); // a new TLS handshake is needed
+      gStageCloud.set(path);
+      const bool write = body != nullptr;
+      snprintf(url_, sizeof(url_), "%s/devices/%s/%s.json?%sauth=%s", base_, CLOUD_DEVICE_ID, path,
+               write ? "print=silent&" : "", token_);
+      // Every stop() (ours or HTTPClient's) wipes the TLS context, CA bundle
+      // hook included, so attach it again before a possible reconnect.
+      db_.setCACertBundle(caBundleStart, caBundleEnd - caBundleStart);
+      if (!http_.begin(db_, url_)) return false;
+      collectBodyHeaders(http_);
+      int code = write ? http_.sendRequest(method, reinterpret_cast<uint8_t *>(const_cast<char *>(body)), strlen(body))
+                       : http_.sendRequest(method);
+      response_ = String();
+      if (code == 200 && !readBody(http_, response_, 10000)) {
+        db_.stop(); // Half-read reply: the kept-alive connection is unusable.
+        code = -11;
+      }
+      if (code < 0) connectError(db_, code);
+      http_.end();
+      if (fresh && (code == 200 || code == 204)) {
+        db_.setNoDelay(true); // Small requests: do not wait for Nagle.
+        notifier_->report("[CLOUD] Ket noi CSDL moi + %s %s: %lu ms.", method, path, (unsigned long)(millis() - t0));
+      }
+      if (code == 200 || code == 204) return true;
+      // Google's load balancer closes kept-alive HTTP/1.1 sockets after ~60 s.
+      // Reconnect once immediately (RFC 9112 §9.5) unless an alert needs TlsGate now.
+      if (attempt == 0 && !fresh && code < 0 && !notifier_->tls().alertWaiting) {
+        db_.stop();
+        continue;
+      }
+      netError_ = code < 0;
+      if (code == 401) haveToken_ = false; // Expired/revoked token: sign in again.
+      if (code < 0) notifier_->report("[CLOUD] %s %s loi: %.80s", method, path, message_);
+      else notifier_->report("[CLOUD] %s %s loi HTTP %d%s", method, path, code,
+                             code == 401 ? " (kiem tra quyen trong /access)" : "");
+      return false;
     }
-    if (code < 0) connectError(db_, code);
-    http_.end();
-    if (fresh && (code == 200 || code == 204)) {
-      db_.setNoDelay(true); // Small requests: do not wait for Nagle.
-      notifier_->report("[CLOUD] Ket noi CSDL moi + %s %s: %lu ms.", method, path, (unsigned long)(millis() - t0));
-    }
-    if (code == 200 || code == 204) return true;
-    netError_ = code < 0;
-    if (code == 401) haveToken_ = false; // Expired/revoked token: sign in again.
-    if (code < 0) notifier_->report("[CLOUD] %s %s loi: %.80s", method, path, message_);
-    else notifier_->report("[CLOUD] %s %s loi HTTP %d%s", method, path, code,
-                           code == 401 ? " (kiem tra quyen trong /access)" : "");
     return false;
   }
 

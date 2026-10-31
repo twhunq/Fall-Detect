@@ -34,7 +34,9 @@ class WebPortal {
     lan_ = lan;
     board_ = &board;
     cloud_ = &cloud;
-    return xTaskCreatePinnedToCore(taskMain, "web", 8192, this, 1, nullptr, 0) == pdPASS;
+    // Priority 2 (> cloud/notify at 1): web yields 5 ms per loop, so local HTTP
+    // stays responsive (<50 ms) even while Core 0 performs mbedTLS handshakes.
+    return xTaskCreatePinnedToCore(taskMain, "web", 8192, this, 2, nullptr, 0) == pdPASS;
   }
 
  private:

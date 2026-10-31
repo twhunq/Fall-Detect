@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import time
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 ROOT = SCRIPTS_DIR.parent
@@ -81,6 +82,83 @@ def select_port(cli, explicit=None):
     return selected
 
 
+def find_esptool_and_boot_app0(active_core):
+    base = Path(os.environ.get('LOCALAPPDATA', '')) / 'Arduino15' / 'packages' / 'esp32'
+    esptools = sorted((base / 'tools' / 'esptool_py').glob('*/esptool.exe'), reverse=True)
+    boot_app0 = base / 'hardware' / 'esp32' / active_core / 'tools' / 'partitions' / 'boot_app0.bin'
+    if esptools and boot_app0.is_file():
+        return str(esptools[0]), str(boot_app0)
+    return None, None
+
+
+def is_windows_usb_jtag(port):
+    if os.name != 'nt':
+        return False
+    try:
+        from serial.tools import list_ports
+        for info in list_ports.comports():
+            if info.device.upper() == str(port).upper():
+                return info.vid == 0x303A and info.pid == 0x1001
+    except Exception:
+        return False
+    return False
+
+
+def resolve_post_reset_port(port):
+    try:
+        from serial.tools import list_ports
+        ports = list(list_ports.comports())
+        if any(p.device.upper() == str(port).upper() for p in ports):
+            return port
+        espressif = [p.device for p in ports if p.vid == 0x303A]
+        if len(espressif) == 1:
+            return espressif[0]
+    except Exception:
+        pass
+    return port
+
+
+def usb_jtag_reset_and_upload(port, output, sketch_name, active_core):
+    """Windows usbser.sys workaround: close COM handle across USB-JTAG reset, then flash at 460800 with no-reset."""
+    import serial
+    esptool, boot_app0 = find_esptool_and_boot_app0(active_core)
+    if not esptool:
+        raise RuntimeError('Khong tim thay esptool.exe / boot_app0.bin de nap ESP32-S3.')
+    print(f'[USB-JTAG] Reset {port} vao che do nap ROM va mo lai handle moi...', flush=True)
+    s = serial.Serial(port, 115200, timeout=0.5, write_timeout=0.5, dsrdtr=False, rtscts=False)
+    try:
+        s.rts = False
+        s.dtr = False
+        time.sleep(0.1)
+        s.dtr = True
+        s.rts = False
+        time.sleep(0.1)
+        s.rts = True
+        s.dtr = False
+        s.rts = True
+        time.sleep(0.1)
+        s.dtr = False
+        s.rts = False
+    except OSError:
+        # USB-Serial/JTAG may re-enumerate immediately on the final RTS edge.
+        pass
+    finally:
+        s.close()
+    time.sleep(1.5)
+    port = resolve_post_reset_port(port)
+    cmd = [
+        esptool, '--chip', 'esp32s3', '--port', port, '--baud', '460800',
+        '--before', 'no-reset', '--after', 'hard-reset',
+        'write-flash', '-z', '--flash-mode', 'keep', '--flash-freq', 'keep', '--flash-size', 'keep',
+        '0x0', str(output / f'{sketch_name}.ino.bootloader.bin'),
+        '0x8000', str(output / f'{sketch_name}.ino.partitions.bin'),
+        '0xe000', boot_app0,
+        '0x10000', str(output / f'{sketch_name}.ino.bin'),
+    ]
+    print('[RUN]', subprocess.list2cmdline(cmd), flush=True)
+    subprocess.run(cmd, check=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--build-only', action='store_true')
@@ -111,7 +189,15 @@ def main():
         print('[OK] Build ESP32-S3:', output)
         return
     port = select_port(cli, args.port)
-    run(cli, 'upload', '--fqbn', FQBN, '--port', port, '--input-dir', output, sketch)
+    if is_windows_usb_jtag(port) and find_esptool_and_boot_app0(active_core)[0]:
+        usb_jtag_reset_and_upload(port, output, args.sketch, active_core)
+    else:
+        try:
+            run(cli, 'upload', '--fqbn', FQBN, '--port', port, '--input-dir', output, sketch)
+        except subprocess.CalledProcessError:
+            if os.name != 'nt':
+                raise
+            usb_jtag_reset_and_upload(port, output, args.sketch, active_core)
     print('[OK] Da nap ESP32-S3. Mo Serial 115200; cong COM co the thay doi sau reset.')
 
 

@@ -1,4 +1,4 @@
-﻿// ESP32-S3 Super Mini, PCB fall_detector. See README.md for controls/build.
+// ESP32-S3 Super Mini, PCB fall_detector. See README.md for controls/build.
 #include <Arduino.h>
 #include <stdarg.h>
 #include <esp_task_wdt.h>
@@ -544,7 +544,10 @@ void setup() {
     if (!CloudSync::configured()) logLine("[CLOUD] Tat (chua co FIREBASE_* trong secrets.h).");
     else if (!cloud.begin(notifier, statusBoard)) logLine("[CLOUD] Khong tao duoc task dong bo.");
   } else logLine("[NET] Tat Wi-Fi (chua luu mang nao va WIFI_SETUP_AP = 0).");
-  if (!mpu.begin()) sensorFault();
+  if (!mpu.begin()) {
+    delay(25);
+    if (!mpu.begin()) sensorFault();
+  }
 }
 
 void loop() {

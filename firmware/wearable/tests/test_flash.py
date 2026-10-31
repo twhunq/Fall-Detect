@@ -63,6 +63,22 @@ class FlashTests(unittest.TestCase):
         self.assertIsNone(flash.find_supported_core(
             [{'id': 'esp32:esp32', 'installed_version': '3.3.7'}]))
 
+    def test_windows_usb_jtag_detection_and_post_reset_port(self):
+        class FakePort:
+            def __init__(self, device, vid, pid):
+                self.device = device
+                self.vid = vid
+                self.pid = pid
+
+        fake_ports = [FakePort('COM1', None, None), FakePort('COM3', 0x303A, 0x1001)]
+        with patch.object(flash.os, 'name', 'nt'), \
+                patch('serial.tools.list_ports.comports', return_value=fake_ports):
+            self.assertTrue(flash.is_windows_usb_jtag('COM3'))
+            self.assertFalse(flash.is_windows_usb_jtag('COM1'))
+            self.assertEqual(flash.resolve_post_reset_port('COM3'), 'COM3')
+            # If USB-JTAG re-enumerates to COM4 after reset, resolve passively without opening ports.
+            self.assertEqual(flash.resolve_post_reset_port('COM9'), 'COM3')
+
 
 if __name__ == '__main__':
     unittest.main()
